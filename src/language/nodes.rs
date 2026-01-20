@@ -18,5 +18,15 @@ pub enum Node {
 	UnaryOp {
 		op: TokenKind,
 		right: Box<Node>
+	},
+
+	// STATEMENTS
+	LetStatement {
+		name: String,
+		value: Box<Node>
+	},
+
+	Block {
+		body: Vec<Node>
 	}
 }

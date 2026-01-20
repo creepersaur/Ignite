@@ -18,7 +18,7 @@ impl Parser {
         Self {
             source,
             tokens,
-            pos: -1,
+            pos: 0,
         }
     }
 
@@ -32,8 +32,8 @@ impl Parser {
         }
     }
 
-	#[allow(unused)]
-    pub fn current(&self) -> TokenResult {
+    #[allow(unused)]
+    fn current(&self) -> TokenResult {
         if self.pos < self.tokens.len() as i32 {
             Ok(self.tokens[self.pos as usize])
         } else {
@@ -41,7 +41,7 @@ impl Parser {
         }
     }
 
-    pub fn peek(&self) -> Option<Token> {
+    fn peek(&self) -> Option<Token> {
         if self.pos + 1 < self.tokens.len() as i32 {
             Some(self.tokens[(self.pos + 1) as usize])
         } else {
@@ -49,18 +49,44 @@ impl Parser {
         }
     }
 
-    pub fn expect(&self, kind: TokenKind) -> Result<(), String> {
-		if let Some(next) = self.peek() {
-			if next.kind != kind {
-				Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
-			} else {
-				Ok(())
-			}
-		} else {
-			Err(format!("Expected `{kind:?}`, got [EOF]"))
-		}
+    fn expect(&self, kind: TokenKind) -> Result<(), String> {
+        if let Some(next) = self.peek() {
+            if next.kind != kind {
+                Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(format!("Expected `{kind:?}`, got [EOF]"))
+        }
     }
 
+    fn expect_and_consume(&mut self, kind: TokenKind) -> Result<Token, String> {
+        if let Some(next) = self.peek() {
+            if next.kind != kind {
+                Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
+            } else {
+                Ok(self.advance()?)
+            }
+        } else {
+            Err(format!("Expected `{kind:?}`, got [EOF]."))
+        }
+    }
+
+    pub fn parse(&mut self) -> NodeResult {
+		self.skip_new_lines();
+		
+        match self.current()?.kind {
+            TokenKind::LET => self.parse_let(),
+            // TokenKind::LBRACE => self.parse_block(),
+
+            _ => self.parse_expression(),
+        }
+    }
+}
+
+// EXPRESSIONS
+impl Parser {
     pub fn parse_add_sub(&mut self) -> NodeResult {
         let mut left = self.parse_mul_div()?;
 
@@ -69,7 +95,9 @@ impl Parser {
                 break;
             }
 
+            self.skip_new_lines();
             let op = self.advance()?.kind;
+			self.advance()?;
             let right = self.parse_mul_div()?;
 
             left = Node::BinOp {
@@ -93,7 +121,9 @@ impl Parser {
                 break;
             }
 
+            self.skip_new_lines();
             let op = self.advance()?.kind;
+			self.advance()?;
             let right = self.parse_unary()?;
 
             left = Node::BinOp {
@@ -107,11 +137,16 @@ impl Parser {
     }
 
     pub fn parse_unary(&mut self) -> NodeResult {
-        if let Some(next) = self.peek()
+        self.skip_new_lines();
+
+        if let Ok(next) = self.current()
             && matches!(next.kind, TokenKind::PLUS | TokenKind::MINUS)
         {
+			let op = self.current()?.kind;
+			self.advance()?;
+
             return Ok(Node::UnaryOp {
-                op: self.advance()?.kind,
+                op,
                 right: Box::new(self.parse_exponent()?),
             });
         }
@@ -127,7 +162,9 @@ impl Parser {
                 break;
             }
 
+            self.skip_new_lines();
             let op = self.advance()?.kind;
+			self.advance()?;
             let right = self.parse_primary()?;
 
             left = Node::BinOp {
@@ -141,9 +178,10 @@ impl Parser {
     }
 
     pub fn parse_primary(&mut self) -> NodeResult {
-        let current = self.advance()?;
+        self.skip_new_lines();
+        let current = self.current()?;
 
-        match current.kind {
+        let node = match current.kind {
             TokenKind::IntLiteral(x) => Ok(Node::IntLiteral(x)),
             TokenKind::FloatLiteral(x) => Ok(Node::FloatLiteral(x)),
             TokenKind::BooleanLiteral(x) => Ok(Node::BooleanLiteral(x)),
@@ -152,20 +190,71 @@ impl Parser {
             )),
             TokenKind::CharLiteral => Ok(Node::CharLiteral(current.get_text(&self.source).into())),
 
-			TokenKind::LPAREN => {
-				let expr = self.parse_expression()?;
+            TokenKind::LPAREN => {
+                let expr = self.parse_expression()?;
 
-				self.expect(TokenKind::RPAREN)?;
-				self.advance()?;
+                self.skip_new_lines();
+                self.expect(TokenKind::RPAREN)?;
+                self.advance()?;
 
-				Ok(expr)
+                Ok(expr)
+            }
+
+            other => Err(format!("Got unexpected token `{other:?}` while parsing primary.")),
+        };
+
+		node
+    }
+
+    pub fn skip_new_lines(&mut self) {
+		if let Ok(next) = self.current() {
+			if matches!(next.kind, TokenKind::NEWLINE) {
+                self.advance().unwrap();
 			}
-
-            _ => Err("Got unexpected token while parsing primary.".to_string()),
+		}
+        while let Some(next) = self.peek() {
+            if matches!(next.kind, TokenKind::NEWLINE) {
+                self.advance().unwrap();
+            } else {
+				break;
+			}
         }
     }
 
     pub fn parse_expression(&mut self) -> NodeResult {
         self.parse_add_sub()
     }
+}
+
+// STATEMENTS
+impl Parser {
+    fn parse_let(&mut self) -> NodeResult {
+        let name = self.expect_and_consume(TokenKind::Identifier)?;
+        self.expect_and_consume(TokenKind::EQUAL)?;
+		self.advance()?;
+
+        Ok(Node::LetStatement {
+            name: name.get_text(&self.source).to_string(),
+            value: Box::new(self.parse_expression()?),
+        })
+    }
+
+	// fn parse_block(&mut self) -> NodeResult {
+	// 	self.advance()?;
+	// 	self.skip_new_lines();
+
+	// 	let mut body = vec![];
+	// 	while let Some(next) = self.peek() {
+	// 		self.skip_new_lines();
+	// 		println!("{next:?}");
+	// 		if next.kind == TokenKind::RBRACE {
+	// 			break;
+	// 		}
+	// 		body.push(self.parse()?);
+	// 	}
+
+	// 	self.expect_and_consume(TokenKind::RBRACE)?;
+
+	// 	Ok(Node::Block { body })
+	// }
 }
