@@ -23,13 +23,10 @@ impl Parser {
     }
 
     pub fn advance(&mut self) -> TokenResult {
+		let current = self.current();
         self.pos += 1;
 
-        if self.pos < self.tokens.len() as i32 {
-            Ok(self.tokens[self.pos as usize])
-        } else {
-            Err("Expected more tokens. Got [EOF].".to_string())
-        }
+		current
     }
 
     #[allow(unused)]
@@ -62,17 +59,12 @@ impl Parser {
     }
 
     fn expect_and_consume(&mut self, kind: TokenKind) -> Result<Token, String> {
-        if let Ok(next) = self.current() {
-            if next.kind != kind {
-                Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
-            } else {
-                if self.peek().is_some() {
-					self.advance()?;
-				}
-                Ok(next)
-            }
+        let next = self.current()?;
+        if next.kind != kind {
+            Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
         } else {
-            Err(format!("Expected `{kind:?}`, got [EOF]."))
+            self.advance()?;
+            Ok(next)
         }
     }
 
@@ -93,14 +85,13 @@ impl Parser {
     pub fn parse_add_sub(&mut self) -> NodeResult {
         let mut left = self.parse_mul_div()?;
 
-        while let Some(next) = self.peek() {
+        while let Ok(next) = self.current() {
             if !matches!(next.kind, TokenKind::PLUS | TokenKind::MINUS) {
                 break;
             }
 
             self.skip_new_lines();
             let op = self.advance()?.kind;
-            self.advance()?;
             let right = self.parse_mul_div()?;
 
             left = Node::BinOp {
@@ -116,7 +107,7 @@ impl Parser {
     pub fn parse_mul_div(&mut self) -> NodeResult {
         let mut left = self.parse_unary()?;
 
-        while let Some(next) = self.peek() {
+        while let Ok(next) = self.current() {
             if !matches!(
                 next.kind,
                 TokenKind::STAR | TokenKind::SLASH | TokenKind::MOD
@@ -126,7 +117,6 @@ impl Parser {
 
             self.skip_new_lines();
             let op = self.advance()?.kind;
-            self.advance()?;
             let right = self.parse_unary()?;
 
             left = Node::BinOp {
@@ -145,8 +135,7 @@ impl Parser {
         if let Ok(next) = self.current()
             && matches!(next.kind, TokenKind::PLUS | TokenKind::MINUS)
         {
-            let op = self.current()?.kind;
-            self.advance()?;
+            let op = self.advance()?.kind;
 
             return Ok(Node::UnaryOp {
                 op,
@@ -160,14 +149,13 @@ impl Parser {
     pub fn parse_exponent(&mut self) -> NodeResult {
         let mut left = self.parse_primary()?;
 
-        while let Some(next) = self.peek() {
+        while let Ok(next) = self.current() {
             if !matches!(next.kind, TokenKind::POW) {
                 break;
             }
 
             self.skip_new_lines();
             let op = self.advance()?.kind;
-            self.advance()?;
             let right = self.parse_primary()?;
 
             left = Node::BinOp {
@@ -201,8 +189,7 @@ impl Parser {
                 let expr = self.parse_expression()?;
 
                 self.skip_new_lines();
-                self.expect(TokenKind::RPAREN)?;
-                self.advance()?;
+                self.expect_and_consume(TokenKind::RPAREN)?;
 
                 Ok(expr)
             }
@@ -211,6 +198,8 @@ impl Parser {
                 "Got unexpected token `{other:?}` while parsing primary."
             )),
         };
+
+		self.advance()?;
 
         node
     }
@@ -254,14 +243,13 @@ impl Parser {
         let mut body = vec![];
 
         while let Ok(next) = self.current() {
-			self.skip_new_lines();
+            self.skip_new_lines();
             if next.kind == TokenKind::RBRACE {
                 break;
             }
 
             body.push(self.parse()?);
-			self.advance()?;
-			self.skip_new_lines();
+            self.skip_new_lines();
         }
 
         self.expect_and_consume(TokenKind::RBRACE)?;

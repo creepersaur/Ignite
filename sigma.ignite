@@ -1,4 +1,4 @@
 {
-	let x = 10
+	let hello = "world"
+	let wow = false
 }
-1
