@@ -74,12 +74,11 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> NodeResult {
-		self.skip_new_lines();
-		
+        self.skip_new_lines();
+
         match self.current()?.kind {
             TokenKind::LET => self.parse_let(),
             // TokenKind::LBRACE => self.parse_block(),
-
             _ => self.parse_expression(),
         }
     }
@@ -97,7 +96,7 @@ impl Parser {
 
             self.skip_new_lines();
             let op = self.advance()?.kind;
-			self.advance()?;
+            self.advance()?;
             let right = self.parse_mul_div()?;
 
             left = Node::BinOp {
@@ -123,7 +122,7 @@ impl Parser {
 
             self.skip_new_lines();
             let op = self.advance()?.kind;
-			self.advance()?;
+            self.advance()?;
             let right = self.parse_unary()?;
 
             left = Node::BinOp {
@@ -142,8 +141,8 @@ impl Parser {
         if let Ok(next) = self.current()
             && matches!(next.kind, TokenKind::PLUS | TokenKind::MINUS)
         {
-			let op = self.current()?.kind;
-			self.advance()?;
+            let op = self.current()?.kind;
+            self.advance()?;
 
             return Ok(Node::UnaryOp {
                 op,
@@ -164,7 +163,7 @@ impl Parser {
 
             self.skip_new_lines();
             let op = self.advance()?.kind;
-			self.advance()?;
+            self.advance()?;
             let right = self.parse_primary()?;
 
             left = Node::BinOp {
@@ -185,10 +184,14 @@ impl Parser {
             TokenKind::IntLiteral(x) => Ok(Node::IntLiteral(x)),
             TokenKind::FloatLiteral(x) => Ok(Node::FloatLiteral(x)),
             TokenKind::BooleanLiteral(x) => Ok(Node::BooleanLiteral(x)),
-            TokenKind::StringLiteral => Ok(Node::StringLiteral(
-                current.get_text(&self.source).to_string(),
-            )),
-            TokenKind::CharLiteral => Ok(Node::CharLiteral(current.get_text(&self.source).into())),
+            TokenKind::StringLiteral => Ok(Node::StringLiteral({
+                let text = current.get_text(&self.source);
+                text[1..text.len() - 1].to_string()
+            })),
+            TokenKind::CharLiteral => Ok(Node::CharLiteral({
+                let text = current.get_text(&self.source);
+                text[1..text.len() - 1].into()
+            })),
 
             TokenKind::LPAREN => {
                 let expr = self.parse_expression()?;
@@ -200,24 +203,26 @@ impl Parser {
                 Ok(expr)
             }
 
-            other => Err(format!("Got unexpected token `{other:?}` while parsing primary.")),
+            other => Err(format!(
+                "Got unexpected token `{other:?}` while parsing primary."
+            )),
         };
 
-		node
+        node
     }
 
     pub fn skip_new_lines(&mut self) {
-		if let Ok(next) = self.current() {
-			if matches!(next.kind, TokenKind::NEWLINE) {
+        if let Ok(next) = self.current() {
+            if matches!(next.kind, TokenKind::NEWLINE) {
                 self.advance().unwrap();
-			}
-		}
+            }
+        }
         while let Some(next) = self.peek() {
             if matches!(next.kind, TokenKind::NEWLINE) {
                 self.advance().unwrap();
             } else {
-				break;
-			}
+                break;
+            }
         }
     }
 
@@ -231,7 +236,7 @@ impl Parser {
     fn parse_let(&mut self) -> NodeResult {
         let name = self.expect_and_consume(TokenKind::Identifier)?;
         self.expect_and_consume(TokenKind::EQUAL)?;
-		self.advance()?;
+        self.advance()?;
 
         Ok(Node::LetStatement {
             name: name.get_text(&self.source).to_string(),
@@ -239,22 +244,22 @@ impl Parser {
         })
     }
 
-	// fn parse_block(&mut self) -> NodeResult {
-	// 	self.advance()?;
-	// 	self.skip_new_lines();
+    // fn parse_block(&mut self) -> NodeResult {
+    // 	self.advance()?;
+    // 	self.skip_new_lines();
 
-	// 	let mut body = vec![];
-	// 	while let Some(next) = self.peek() {
-	// 		self.skip_new_lines();
-	// 		println!("{next:?}");
-	// 		if next.kind == TokenKind::RBRACE {
-	// 			break;
-	// 		}
-	// 		body.push(self.parse()?);
-	// 	}
+    // 	let mut body = vec![];
+    // 	while let Some(next) = self.peek() {
+    // 		self.skip_new_lines();
+    // 		println!("{next:?}");
+    // 		if next.kind == TokenKind::RBRACE {
+    // 			break;
+    // 		}
+    // 		body.push(self.parse()?);
+    // 	}
 
-	// 	self.expect_and_consume(TokenKind::RBRACE)?;
+    // 	self.expect_and_consume(TokenKind::RBRACE)?;
 
-	// 	Ok(Node::Block { body })
-	// }
+    // 	Ok(Node::Block { body })
+    // }
 }
