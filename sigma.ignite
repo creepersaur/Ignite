@@ -1,4 +1,3 @@
-{
-	let hello = "world"
-	let wow = false
+func hello() {
+	
 }

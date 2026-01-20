@@ -9,7 +9,7 @@ fn main() {
     let mut lex = Lexer::new(&text);
     let tokens = lex.get_tokens();
 
-    println!("{:#?}", tokens.iter().map(|x| x.kind).collect::<Vec<_>>());
+    println!("{:#?}", tokens.iter().map(|x| x.kind.clone()).collect::<Vec<_>>());
 
     let mut parser = Parser::new(text, tokens);
 	let mut nodes = vec![];

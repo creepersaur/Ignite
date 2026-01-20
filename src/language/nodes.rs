@@ -8,6 +8,7 @@ pub enum Node {
     StringLiteral(String),
     CharLiteral(String),
     BooleanLiteral(bool),
+    Null,
 
     // OPERATORS
     BinOp {
@@ -28,5 +29,12 @@ pub enum Node {
 
 	Block {
 		body: Vec<Node>
-	}
+	},
+
+    FuncDeclaration {
+        name: String,
+        params: Box<Node>,
+        return_type: Box<Node>,
+        block: Box<Node>,
+    }
 }

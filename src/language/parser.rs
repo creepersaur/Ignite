@@ -23,16 +23,16 @@ impl Parser {
     }
 
     pub fn advance(&mut self) -> TokenResult {
-		let current = self.current();
+        let current = self.current();
         self.pos += 1;
 
-		current
+        current
     }
 
     #[allow(unused)]
     fn current(&self) -> TokenResult {
         if self.pos < self.tokens.len() as i32 {
-            Ok(self.tokens[self.pos as usize])
+            Ok(self.tokens[self.pos as usize].clone())
         } else {
             Err("Current expected more tokens. Got [EOF].".to_string())
         }
@@ -40,7 +40,7 @@ impl Parser {
 
     pub fn peek(&self) -> Option<Token> {
         if self.pos + 1 < self.tokens.len() as i32 {
-            Some(self.tokens[(self.pos + 1) as usize])
+            Some(self.tokens[(self.pos + 1) as usize].clone())
         } else {
             None
         }
@@ -176,22 +176,42 @@ impl Parser {
             TokenKind::IntLiteral(x) => Ok(Node::IntLiteral(x)),
             TokenKind::FloatLiteral(x) => Ok(Node::FloatLiteral(x)),
             TokenKind::BooleanLiteral(x) => Ok(Node::BooleanLiteral(x)),
-            TokenKind::StringLiteral => Ok(Node::StringLiteral({
+            TokenKind::StringLiteral(_) => Ok(Node::StringLiteral({
                 let text = current.get_text(&self.source);
                 text[1..text.len() - 1].to_string()
             })),
-            TokenKind::CharLiteral => Ok(Node::CharLiteral({
+            TokenKind::CharLiteral(_) => Ok(Node::CharLiteral({
                 let text = current.get_text(&self.source);
                 text[1..text.len() - 1].into()
             })),
 
             TokenKind::LPAREN => {
-                let expr = self.parse_expression()?;
-
+                self.advance()?; // consume '('
                 self.skip_new_lines();
-                self.expect_and_consume(TokenKind::RPAREN)?;
 
+                let expr = if let Some(next) = self.current().ok() {
+                    if next.kind == TokenKind::RPAREN {
+                        Node::Null
+                    } else {
+                        self.parse_expression()?
+                    }
+                } else {
+                    return Err("Unexpected end of input inside parentheses".to_string());
+                };
+
+                self.expect_and_consume(TokenKind::RPAREN)?;
                 Ok(expr)
+            }
+
+            TokenKind::FUNC => {
+                self.advance()?;
+                let func_name = self.parse_declaration_name()?;
+                Ok(Node::FuncDeclaration {
+                    name: func_name.to_string(),
+                    params: Box::new(Node::Null),
+                    return_type: Box::new(Node::Null),
+                    block: Box::new(Node::Block { body: vec![] }),
+                })
             }
 
             other => Err(format!(
@@ -199,9 +219,19 @@ impl Parser {
             )),
         };
 
-		self.advance()?;
-
         node
+    }
+
+    pub fn parse_declaration_name(&mut self) -> Result<String, String> {
+        let current = self.current()?;
+
+        if let TokenKind::Identifier(name) = &current.kind {
+            let name = name.clone();
+            self.advance();
+            Ok(name)
+        } else {
+            Err(format!("Expected an identifier, found {:?}", current.kind))
+        }
     }
 
     pub fn skip_new_lines(&mut self) {
@@ -212,7 +242,7 @@ impl Parser {
         // }
         while let Ok(next) = self.current() {
             if matches!(next.kind, TokenKind::NEWLINE) {
-                self.advance().unwrap();
+                self.advance();
             } else {
                 break;
             }
@@ -228,13 +258,25 @@ impl Parser {
 impl Parser {
     fn parse_let(&mut self) -> NodeResult {
         self.advance()?;
-        let name = self.expect_and_consume(TokenKind::Identifier)?;
+        let name = self.expect_and_consume_identifier()?;
         self.expect_and_consume(TokenKind::EQUAL)?;
 
         Ok(Node::LetStatement {
-            name: name.get_text(&self.source).to_string(),
+            name: name,
             value: Box::new(self.parse_expression()?),
         })
+    }
+
+    pub fn expect_and_consume_identifier(&mut self) -> Result<String, String> {
+        let current = self.current()?;
+
+        if let TokenKind::Identifier(name) = &current.kind {
+            let name = name.clone();
+            let _ = self.advance();
+            Ok(name)
+        } else {
+            Err(format!("Expected identifier, found {:?}", current.kind))
+        }
     }
 
     fn parse_block(&mut self) -> NodeResult {
@@ -242,14 +284,19 @@ impl Parser {
 
         let mut body = vec![];
 
-        while let Ok(next) = self.current() {
-            self.skip_new_lines();
+        loop {
+            self.skip_new_lines(); // advance past any newlines
+
+            let next = match self.current() {
+                Ok(tok) => tok,
+                Err(_) => return Err("Unexpected end of input inside block".to_string()),
+            };
+
             if next.kind == TokenKind::RBRACE {
                 break;
             }
 
-            body.push(self.parse()?);
-            self.skip_new_lines();
+            body.push(self.parse()?); // parse statement/expression
         }
 
         self.expect_and_consume(TokenKind::RBRACE)?;

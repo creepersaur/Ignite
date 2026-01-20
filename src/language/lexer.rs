@@ -113,6 +113,7 @@ impl Lexer {
 			"func" => FUNC, 
             "return" => RETURN,
 			"for" => FOR,
+            "\r" => NEWLINE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()
@@ -157,11 +158,11 @@ impl Lexer {
 		} else if let Ok(x) = text.parse::<bool>() {
 			return BooleanLiteral(x)
 		} else if text.starts_with('"') && text.ends_with('"') {
-			return StringLiteral
+			return StringLiteral(text.to_string());
 		} else if text.starts_with('\'') && text.ends_with('\'') {
-			return CharLiteral
+			return CharLiteral('x');
 		}
 
-		Identifier
+		Identifier(text.to_string())
 	}
 }

@@ -6,7 +6,7 @@ pub struct TokenRange {
     pub end: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub range: TokenRange,
@@ -22,50 +22,50 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     NEWLINE,
-    Identifier,
+    Identifier(String),
 
     // LITERALS
     IntLiteral(i32),
     FloatLiteral(f32),
-    StringLiteral,
+    StringLiteral(String),
     BooleanLiteral(bool),
-	CharLiteral,
+    CharLiteral(char),
 
     // Keywords
     RETURN,
     LET,
-	FUNC,
-	FOR,
+    FUNC,
+    FOR,
 
-	// Punctuation
+    // Punctuation
     LPAREN, // Parenthesis ()
     RPAREN,
     LBRACK, // Brackets []
     RBRACK,
     LBRACE, // Braces {}
     RBRACE,
-	PLUS,
-	MINUS,
-	STAR,
-	SLASH,
-	MOD,
-	POW,
-	DOLLAR,
-	HASH,
-	AT,
-	BANG,
-	EQUAL,
-	GR,
-	LT,
-	GE,
-	LE,
-	COLON,
-	SEMI,
-	QUESTION,
-	TILDA,
-	BACKTICK,
-	PIPE,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    MOD,
+    POW,
+    DOLLAR,
+    HASH,
+    AT,
+    BANG,
+    EQUAL,
+    GR,
+    LT,
+    GE,
+    LE,
+    COLON,
+    SEMI,
+    QUESTION,
+    TILDA,
+    BACKTICK,
+    PIPE,
 }
