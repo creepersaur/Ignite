@@ -1,13 +1,16 @@
-use crate::language::lexer::Lexer;
+use crate::language::{lexer::Lexer, parser::Parser};
 
 mod language;
 
 fn main() {
-    let text = "100.5";
-    let mut lex = Lexer::new(text);
+    let text = String::from("(1 + 1) * 5");
+    let mut lex = Lexer::new(&text);
+	let tokens = lex.get_tokens();
+	
+	let mut parser = Parser::new(text, tokens);
 
     println!(
-        "{:?}",
-        lex.get_tokens().iter().map(|x| x.get_text(text)).collect::<Vec<_>>()
+        "{:#?}",
+        parser.parse_expression()
     );
 }

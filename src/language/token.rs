@@ -22,16 +22,16 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenKind {
     NEWLINE,
     Identifier,
 
     // LITERALS
-    IntLiteral,
-    FloatLiteral,
+    IntLiteral(i32),
+    FloatLiteral(f32),
     StringLiteral,
-    BooleanLiteral,
+    BooleanLiteral(bool),
 	CharLiteral,
 
     // Keywords
@@ -49,8 +49,8 @@ pub enum TokenKind {
     RBRACE,
 	PLUS,
 	MINUS,
-	MUL,
-	DIV,
+	STAR,
+	SLASH,
 	MOD,
 	POW,
 	DOLLAR,

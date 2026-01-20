@@ -1,6 +1,6 @@
 use crate::language::token::{Token, TokenKind::{self, *}, TokenRange};
 
-const PUNCTUATION: &str = "!@#$%^&*()_+[]{}|;,./<>?\n";
+const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|;,./<>?\n";
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -58,6 +58,12 @@ impl Lexer {
                 }
 
                 if instr.is_none() && PUNCTUATION.contains(c) {
+					if c == '.' && current_token.parse::<i32>().is_ok() {
+						current_token.push(c);
+						self.advance();
+						continue;
+					}
+
                     if !current_token.is_empty() {
                         tokens.push(Self::identify(&current_token, start_pos));
                     }
@@ -117,8 +123,8 @@ impl Lexer {
             "}" => RBRACE,
             "+" => PLUS,
             "-" => MINUS,
-            "*" => MUL,
-            "/" => DIV,
+            "*" => STAR,
+            "/" => SLASH,
             "%" => MOD,
             "^" => POW,
             "$" => DOLLAR,
@@ -144,12 +150,12 @@ impl Lexer {
     }
 
 	pub fn identify_other(text: &str) -> TokenKind {
-		if text.parse::<i32>().is_ok() {
-			return IntLiteral
-		} else if text.parse::<f32>().is_ok() {
-			return FloatLiteral
-		} else if text == "true" || text == "false" {
-			return BooleanLiteral
+		if let Ok(x) = text.parse::<i32>() {
+			return IntLiteral(x)
+		} else if let Ok(x) = text.parse::<f32>() {
+			return FloatLiteral(x)
+		} else if let Ok(x) = text.parse::<bool>() {
+			return BooleanLiteral(x)
 		} else if text.starts_with('"') && text.ends_with('"') {
 			return StringLiteral
 		} else if text.starts_with('\'') && text.ends_with('\'') {

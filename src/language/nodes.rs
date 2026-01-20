@@ -1,12 +1,4 @@
-#[derive(Debug, Clone, Copy)]
-pub enum Operator {
-    PLUS,
-    MINUS,
-    MUL,
-    DIV,
-    MOD,
-    POW,
-}
+use crate::language::token::TokenKind;
 
 #[derive(Debug, Clone)]
 pub enum Node {
@@ -21,6 +13,10 @@ pub enum Node {
     BinOp {
         left: Box<Node>,
         right: Box<Node>,
-        add: Operator,
+        op: TokenKind,
     },
+	UnaryOp {
+		op: TokenKind,
+		right: Box<Node>
+	}
 }
