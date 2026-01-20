@@ -41,7 +41,7 @@ impl Parser {
         }
     }
 
-    fn peek(&self) -> Option<Token> {
+    pub fn peek(&self) -> Option<Token> {
         if self.pos + 1 < self.tokens.len() as i32 {
             Some(self.tokens[(self.pos + 1) as usize])
         } else {
@@ -50,7 +50,7 @@ impl Parser {
     }
 
     fn expect(&self, kind: TokenKind) -> Result<(), String> {
-        if let Some(next) = self.peek() {
+        if let Ok(next) = self.current() {
             if next.kind != kind {
                 Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
             } else {
@@ -62,11 +62,14 @@ impl Parser {
     }
 
     fn expect_and_consume(&mut self, kind: TokenKind) -> Result<Token, String> {
-        if let Some(next) = self.peek() {
+        if let Ok(next) = self.current() {
             if next.kind != kind {
                 Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
             } else {
-                Ok(self.advance()?)
+                if self.peek().is_some() {
+					self.advance()?;
+				}
+                Ok(next)
             }
         } else {
             Err(format!("Expected `{kind:?}`, got [EOF]."))
@@ -78,7 +81,8 @@ impl Parser {
 
         match self.current()?.kind {
             TokenKind::LET => self.parse_let(),
-            // TokenKind::LBRACE => self.parse_block(),
+            TokenKind::LBRACE => self.parse_block(),
+
             _ => self.parse_expression(),
         }
     }
@@ -212,12 +216,12 @@ impl Parser {
     }
 
     pub fn skip_new_lines(&mut self) {
-        if let Ok(next) = self.current() {
-            if matches!(next.kind, TokenKind::NEWLINE) {
-                self.advance().unwrap();
-            }
-        }
-        while let Some(next) = self.peek() {
+        // if let Ok(next) = self.current() {
+        //     if matches!(next.kind, TokenKind::NEWLINE) {
+        //         self.advance().unwrap();
+        //     }
+        // }
+        while let Ok(next) = self.current() {
             if matches!(next.kind, TokenKind::NEWLINE) {
                 self.advance().unwrap();
             } else {
@@ -234,9 +238,9 @@ impl Parser {
 // STATEMENTS
 impl Parser {
     fn parse_let(&mut self) -> NodeResult {
+        self.advance()?;
         let name = self.expect_and_consume(TokenKind::Identifier)?;
         self.expect_and_consume(TokenKind::EQUAL)?;
-        self.advance()?;
 
         Ok(Node::LetStatement {
             name: name.get_text(&self.source).to_string(),
@@ -244,22 +248,24 @@ impl Parser {
         })
     }
 
-    // fn parse_block(&mut self) -> NodeResult {
-    // 	self.advance()?;
-    // 	self.skip_new_lines();
+    fn parse_block(&mut self) -> NodeResult {
+        self.expect_and_consume(TokenKind::LBRACE)?;
 
-    // 	let mut body = vec![];
-    // 	while let Some(next) = self.peek() {
-    // 		self.skip_new_lines();
-    // 		println!("{next:?}");
-    // 		if next.kind == TokenKind::RBRACE {
-    // 			break;
-    // 		}
-    // 		body.push(self.parse()?);
-    // 	}
+        let mut body = vec![];
 
-    // 	self.expect_and_consume(TokenKind::RBRACE)?;
+        while let Ok(next) = self.current() {
+			self.skip_new_lines();
+            if next.kind == TokenKind::RBRACE {
+                break;
+            }
 
-    // 	Ok(Node::Block { body })
-    // }
+            body.push(self.parse()?);
+			self.advance()?;
+			self.skip_new_lines();
+        }
+
+        self.expect_and_consume(TokenKind::RBRACE)?;
+
+        Ok(Node::Block { body })
+    }
 }

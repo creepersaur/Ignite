@@ -12,6 +12,11 @@ fn main() {
     println!("{:#?}", tokens.iter().map(|x| x.kind).collect::<Vec<_>>());
 
     let mut parser = Parser::new(text, tokens);
+	let mut nodes = vec![];
 
-    println!("{:#?}", parser.parse());
+	while parser.peek().is_some() {
+		nodes.push(parser.parse().unwrap());
+	}
+
+    println!("{:#?}", nodes);
 }
