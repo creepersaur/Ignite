@@ -186,7 +186,7 @@ impl Parser {
             })),
 
             TokenKind::LPAREN => {
-                self.advance()?; // consume '('
+                self.advance()?;
                 self.skip_new_lines();
 
                 let expr = if let Some(next) = self.current().ok() {
@@ -225,6 +225,7 @@ impl Parser {
     pub fn parse_declaration_name(&mut self) -> Result<String, String> {
         let current = self.current()?;
 
+        // getting the actual name
         if let TokenKind::Identifier(name) = &current.kind {
             let name = name.clone();
             self.advance();
@@ -285,7 +286,7 @@ impl Parser {
         let mut body = vec![];
 
         loop {
-            self.skip_new_lines(); // advance past any newlines
+            self.skip_new_lines();
 
             let next = match self.current() {
                 Ok(tok) => tok,
@@ -296,7 +297,7 @@ impl Parser {
                 break;
             }
 
-            body.push(self.parse()?); // parse statement/expression
+            body.push(self.parse()?);
         }
 
         self.expect_and_consume(TokenKind::RBRACE)?;
