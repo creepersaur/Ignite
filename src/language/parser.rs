@@ -46,18 +46,6 @@ impl Parser {
         }
     }
 
-    fn expect(&self, kind: TokenKind) -> Result<(), String> {
-        if let Ok(next) = self.current() {
-            if next.kind != kind {
-                Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(format!("Expected `{kind:?}`, got [EOF]"))
-        }
-    }
-
     fn expect_and_consume(&mut self, kind: TokenKind) -> Result<Token, String> {
         let next = self.current()?;
         if next.kind != kind {
@@ -74,6 +62,11 @@ impl Parser {
         match self.current()?.kind {
             TokenKind::LET => self.parse_let(),
             TokenKind::LBRACE => self.parse_block(),
+            TokenKind::FUNC => self.parse_function_def(),
+            TokenKind::RETURN => self.parse_return(),
+            TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
+            TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
+			TokenKind::WHILE => self.parse_while(),
 
             _ => self.parse_expression(),
         }
@@ -203,6 +196,7 @@ impl Parser {
                 Ok(expr)
             }
 
+<<<<<<< HEAD
             TokenKind::FUNC => {
                 self.advance()?;
                 let func_name = self.parse_declaration_name()?;
@@ -213,12 +207,20 @@ impl Parser {
                     block: Box::new(Node::Block { body: vec![] }),
                 })
             }
+=======
+            TokenKind::Identifier => Ok(Node::Variable(current.get_text(&self.source).to_string())),
+>>>>>>> bc4b9b1 (Added while loop)
 
             other => Err(format!(
                 "Got unexpected token `{other:?}` while parsing primary."
             )),
         };
 
+<<<<<<< HEAD
+=======
+        self.advance()?;
+
+>>>>>>> bc4b9b1 (Added while loop)
         node
     }
 
@@ -282,6 +284,7 @@ impl Parser {
 
     fn parse_block(&mut self) -> NodeResult {
         self.expect_and_consume(TokenKind::LBRACE)?;
+        self.skip_new_lines();
 
         let mut body = vec![];
 
@@ -304,4 +307,104 @@ impl Parser {
 
         Ok(Node::Block { body })
     }
+
+    fn parse_function_def(&mut self) -> NodeResult {
+        self.advance()?; // CONSUME THE `func`
+
+        // Get the text of the name
+        let name = self
+            .expect_and_consume(TokenKind::Identifier)?
+            .get_text(&self.source)
+            .to_string();
+
+        // consume the `(`
+        self.expect_and_consume(TokenKind::LPAREN)?;
+
+        // Also parse arguments (x or x: int)
+        let mut args = vec![];
+
+        while let Ok(next) = self.current() {
+            self.skip_new_lines();
+            if next.kind == TokenKind::RPAREN {
+                break;
+            }
+
+            let arg_name = self
+                .expect_and_consume(TokenKind::Identifier)?
+                .get_text(&self.source)
+                .to_string();
+
+            let arg_type = if let Ok(next) = self.current()
+                && next.kind == TokenKind::COLON
+            {
+                self.expect_and_consume(TokenKind::COLON)?;
+                Some(
+                    self.expect_and_consume(TokenKind::Identifier)?
+                        .get_text(&self.source)
+                        .to_string(),
+                )
+            } else {
+                None
+            };
+
+            args.push((arg_name, arg_type));
+
+            self.skip_new_lines();
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::COMMA
+            {
+                self.advance()?;
+            } else {
+                break;
+            }
+        }
+
+        // consume the `)`
+        self.expect_and_consume(TokenKind::RPAREN)?;
+
+        // parse a `block`
+        Ok(Node::FunctionDefinition {
+            name,
+            args,
+            block: Box::new(self.parse_block()?),
+        })
+    }
+
+    fn parse_return(&mut self) -> NodeResult {
+        self.advance()?;
+
+        if let Ok(next) = self.current()
+            && !matches!(next.kind, TokenKind::NEWLINE | TokenKind::SEMI)
+        {
+            Ok(Node::ReturnStatement(Some(Box::new(
+                self.parse_expression()?,
+            ))))
+        } else {
+            Ok(Node::ReturnStatement(None))
+        }
+    }
+
+	/// Just advance and return whatever you want.
+	fn simple_parse_keyword(&mut self, node: Node) -> NodeResult {
+		self.advance()?;
+		Ok(node)
+	}
+
+	fn parse_while(&mut self) -> NodeResult {
+		self.advance()?;
+
+		Ok(Node::WhileLoop {
+			condition: Box::new(self.parse_expression()?),
+			block: Box::new(self.parse_block()?),
+		})
+	}
+
+	// fn parse_for(&mut self) -> NodeResult {
+	// 	self.advance()?;
+
+	// 	Ok(Node::WhileLoop {
+	// 		condition: Box::new(self.parse_expression()?),
+	// 		block: Box::new(self.parse_block()?),
+	// 	})
+	// }
 }

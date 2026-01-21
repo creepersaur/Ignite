@@ -1,6 +1,6 @@
 use crate::language::token::{Token, TokenKind::{self, *}, TokenRange};
 
-const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|;,./<>?\n";
+const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?\n";
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -113,7 +113,9 @@ impl Lexer {
 			"func" => FUNC, 
             "return" => RETURN,
 			"for" => FOR,
-            "\r" => NEWLINE,
+			"break" => BREAK,
+			"continue" => CONTINUE,
+			"while" => WHILE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()
@@ -143,6 +145,8 @@ impl Lexer {
             "~" => TILDA,
             "`" => BACKTICK,
             "|" => PIPE,
+			"." => DOT,
+			"," => COMMA,
 
             _ => Self::identify_other(text),
         };

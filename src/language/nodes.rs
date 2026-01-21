@@ -1,5 +1,6 @@
 use crate::language::token::TokenKind;
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Node {
     // LITERALS
@@ -8,6 +9,8 @@ pub enum Node {
     StringLiteral(String),
     CharLiteral(String),
     BooleanLiteral(bool),
+
+	Variable(String),
     Null,
 
     // OPERATORS
@@ -22,6 +25,7 @@ pub enum Node {
 	},
 
 	// STATEMENTS
+	// use a Box<Node> because Node by itself makes it infinitely big
 	LetStatement {
 		name: String,
 		value: Box<Node>
@@ -31,10 +35,19 @@ pub enum Node {
 		body: Vec<Node>
 	},
 
-    FuncDeclaration {
-        name: String,
-        params: Box<Node>,
-        return_type: Box<Node>,
-        block: Box<Node>,
-    }
+	// Arguments are in the tuple -> (name: String, type: Option<String>)
+	FunctionDefinition {
+		name: String,
+		args: Vec<(String, Option<String>)>,
+		block: Box<Node>
+	},
+
+	ReturnStatement(Option<Box<Node>>),
+	BreakStatement,
+	ContinueStatement,
+
+	WhileLoop {
+		condition: Box<Node>,
+		block: Box<Node>
+	}
 }

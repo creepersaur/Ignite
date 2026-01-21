@@ -1,3 +1,4 @@
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Value {
 	Int(i32),
