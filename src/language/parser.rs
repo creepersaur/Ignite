@@ -67,6 +67,7 @@ impl Parser {
             TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
             TokenKind::WHILE => self.parse_while(),
+			TokenKind::FOR => self.parse_for(),
 
             _ => self.parse_expression(),
         }
@@ -370,12 +371,48 @@ impl Parser {
         })
     }
 
-    // fn parse_for(&mut self) -> NodeResult {
-    // 	self.advance()?;
+    fn parse_for(&mut self) -> NodeResult {
+        self.advance()?;
 
-    // 	Ok(Node::WhileLoop {
-    // 		condition: Box::new(self.parse_expression()?),
-    // 		block: Box::new(self.parse_block()?),
-    // 	})
-    // }
+        /*
+        for x = 1, 10 {
+
+        }
+         */
+
+        let var_name = self
+            .expect_and_consume(TokenKind::Identifier)?
+            .get_text(&self.source)
+            .to_string();
+
+        let for_handle_type = self.advance()?;
+        if for_handle_type.kind == TokenKind::EQUAL {
+            let start = self.parse_expression()?;
+            self.expect_and_consume(TokenKind::COMMA)?;
+            let end = self.parse_expression()?;
+
+            return Ok(Node::RangedForLoop {
+                var_name,
+                start: Box::new(start),
+                end: Box::new(end),
+
+                // optional step parameter
+                step: if let Ok(next) = self.current()
+                    && next.kind == TokenKind::COMMA
+                {
+                    Some(Box::new(self.parse_expression()?))
+                } else {
+                    None
+                },
+            });
+        } else {
+            self.expect_and_consume(TokenKind::COLON)?;
+
+            let iterable = self.parse_expression()?;
+            return Ok(Node::IterableForLoop {
+                var_name,
+                iterable: Box::new(iterable),
+            });
+        }
+    }
 }
