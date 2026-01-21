@@ -4,14 +4,17 @@ use crate::language::token::TokenKind;
 #[derive(Debug, Clone)]
 pub enum Node {
     // LITERALS
-    IntLiteral(i32),
+    NULL,
+	Variable(String),
+
+	IntLiteral(i32),
     FloatLiteral(f32),
     StringLiteral(String),
     CharLiteral(String),
     BooleanLiteral(bool),
 
-	Variable(String),
-    Null,
+	// COLLECTIONS
+	ListNode(Vec<Node>),
 
     // OPERATORS
     BinOp {

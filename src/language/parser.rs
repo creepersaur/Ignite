@@ -22,7 +22,7 @@ impl Parser {
         }
     }
 
-    pub fn advance(&mut self) -> TokenResult {
+    fn advance(&mut self) -> TokenResult {
         let current = self.current();
         self.pos += 1;
 
@@ -91,7 +91,7 @@ impl Parser {
 
 // EXPRESSIONS
 impl Parser {
-    pub fn parse_add_sub(&mut self) -> NodeResult {
+    fn parse_add_sub(&mut self) -> NodeResult {
         let mut left = self.parse_mul_div()?;
 
         while let Ok(next) = self.current() {
@@ -113,7 +113,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_mul_div(&mut self) -> NodeResult {
+    fn parse_mul_div(&mut self) -> NodeResult {
         let mut left = self.parse_unary()?;
 
         while let Ok(next) = self.current() {
@@ -138,7 +138,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_unary(&mut self) -> NodeResult {
+    fn parse_unary(&mut self) -> NodeResult {
         self.skip_new_lines();
 
         if let Ok(next) = self.current()
@@ -155,7 +155,7 @@ impl Parser {
         Ok(self.parse_exponent()?)
     }
 
-    pub fn parse_exponent(&mut self) -> NodeResult {
+    fn parse_exponent(&mut self) -> NodeResult {
         let mut left = self.parse_primary()?;
 
         while let Ok(next) = self.current() {
@@ -177,7 +177,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_primary(&mut self) -> NodeResult {
+    fn parse_primary(&mut self) -> NodeResult {
         self.skip_new_lines();
         let current = self.current()?;
 
@@ -194,25 +194,23 @@ impl Parser {
                 text[1..text.len() - 1].into()
             })),
 
+            TokenKind::Identifier => Ok(Node::Variable(current.get_text(&self.source).to_string())),
+
+            // COLLECTIONS
             TokenKind::LPAREN => {
                 self.advance()?;
                 self.skip_new_lines();
 
-                let expr = if let Some(next) = self.current().ok() {
-                    if next.kind == TokenKind::RPAREN {
-                        Node::Null
-                    } else {
-                        self.parse_expression()?
-                    }
+                let expr = if self.current().is_ok() {
+                    self.parse_expression()
                 } else {
                     return Err("Unexpected end of input inside parentheses".to_string());
                 };
 
-                self.expect_and_consume(TokenKind::RPAREN)?;
-                Ok(expr)
+                // DON'T PARSE THE `RPAREN` BECAUSE WE ALREADY ADVANCE LATER
+                expr
             }
-
-            TokenKind::Identifier => Ok(Node::Variable(current.get_text(&self.source).to_string())),
+            TokenKind::LBRACK => self.parse_list(),
 
             other => Err(format!(
                 "Got unexpected token `{other:?}` while parsing primary."
@@ -224,7 +222,7 @@ impl Parser {
         node
     }
 
-    pub fn skip_new_lines(&mut self) {
+    fn skip_new_lines(&mut self) {
         while let Ok(next) = self.current() {
             if matches!(next.kind, TokenKind::NEWLINE) {
                 self.advance().unwrap();
@@ -234,15 +232,53 @@ impl Parser {
         }
     }
 
-    pub fn parse_expression(&mut self) -> NodeResult {
-        self.parse_logical()
+    fn parse_list(&mut self) -> NodeResult {
+        self.advance()?;
+
+        let mut values = vec![];
+
+        loop {
+            self.skip_new_lines();
+
+            if let Ok(next) = self.current() {
+                if next.kind == TokenKind::RBRACK {
+                    break;
+                }
+            } else {
+                return Err(format!(
+                    "Unexpected end of input [EOF] while parsing list. Expected `]`."
+                ));
+            }
+
+            values.push(self.parse_expression()?);
+
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::COMMA
+            {
+                self.advance()?;
+            } else {
+                break;
+            }
+        }
+
+        // DONT PARSE THE `RBRACK` BECAUSE WE ALREADY ADVANCE LATER
+
+        Ok(Node::ListNode(values))
     }
 
-    pub fn parse_logical(&mut self) -> NodeResult {
+    fn parse_expression(&mut self) -> NodeResult {
+        let expr = self.parse_logical();
+
+        self.skip_new_lines();
+
+        expr
+    }
+
+    fn parse_logical(&mut self) -> NodeResult {
         self.parse_or()
     }
 
-    pub fn parse_or(&mut self) -> NodeResult {
+    fn parse_or(&mut self) -> NodeResult {
         let mut left = self.parse_and()?;
 
         while let Ok(next) = self.current() {
@@ -263,7 +299,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_and(&mut self) -> NodeResult {
+    fn parse_and(&mut self) -> NodeResult {
         let mut left = self.parse_equality()?;
 
         while let Ok(next) = self.current() {
@@ -284,7 +320,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_equality(&mut self) -> NodeResult {
+    fn parse_equality(&mut self) -> NodeResult {
         let mut left = self.parse_comparison()?;
 
         while let Ok(next) = self.current() {
@@ -305,7 +341,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_comparison(&mut self) -> NodeResult {
+    fn parse_comparison(&mut self) -> NodeResult {
         let mut left = self.parse_add_sub()?;
 
         while let Ok(next) = self.current() {
@@ -329,7 +365,7 @@ impl Parser {
         Ok(left)
     }
 
-    pub fn parse_function_call(&mut self, expr: Node) -> NodeResult {
+    fn parse_function_call(&mut self, expr: Node) -> NodeResult {
         self.advance()?; // consume LPAREN
 
         let mut args = vec![];
@@ -341,7 +377,9 @@ impl Parser {
                 Ok(x) => x,
                 Err(_) => {
                     return {
-                        Err("Unexpected end of input in function call. Expected `)`.".to_string())
+                        Err(format!(
+                            "Unexpected end of input in function call. Expected `)`."
+                        ))
                     };
                 }
             };
@@ -351,8 +389,6 @@ impl Parser {
             }
 
             args.push(self.parse_expression()?);
-
-            self.skip_new_lines();
 
             if let Ok(next) = self.current()
                 && next.kind == TokenKind::COMMA
@@ -377,10 +413,12 @@ impl Parser {
 impl Parser {
     fn parse_let(&mut self) -> NodeResult {
         self.advance()?;
+
         let name = self
             .expect_and_consume(TokenKind::Identifier)?
             .get_text(&self.source)
             .to_string();
+
         self.expect_and_consume(TokenKind::EQUAL)?;
 
         Ok(Node::LetStatement {
@@ -391,7 +429,6 @@ impl Parser {
 
     fn parse_block(&mut self) -> NodeResult {
         self.expect_and_consume(TokenKind::LBRACE)?;
-        self.skip_new_lines();
 
         let mut body = vec![];
 
@@ -417,20 +454,29 @@ impl Parser {
 
     fn parse_function_def(&mut self) -> NodeResult {
         self.advance()?;
+        self.skip_new_lines();
 
         let name = self
             .expect_and_consume(TokenKind::Identifier)?
             .get_text(&self.source)
             .to_string();
 
+        self.skip_new_lines();
         self.expect_and_consume(TokenKind::LPAREN)?;
 
         let mut args = vec![];
 
-        while let Ok(next) = self.current() {
+        loop {
             self.skip_new_lines();
-            if next.kind == TokenKind::RPAREN {
-                break;
+
+            if let Ok(next) = self.current() {
+                if next.kind == TokenKind::RPAREN {
+                    break;
+                }
+            } else {
+                return Err(format!(
+                    "Unexpected end of input while parsing function arguments."
+                ));
             }
 
             let arg_name = self
@@ -500,7 +546,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_if(&mut self) -> NodeResult {
+    fn parse_if(&mut self) -> NodeResult {
         self.advance()?;
 
         let condition = self.parse_expression()?;
@@ -569,6 +615,7 @@ impl Parser {
             .to_string();
 
         let for_handle_type = self.advance()?;
+
         if for_handle_type.kind == TokenKind::EQUAL {
             let start = self.parse_expression()?;
             self.expect_and_consume(TokenKind::COMMA)?;
