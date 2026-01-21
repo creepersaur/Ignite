@@ -1,6 +1,8 @@
 use std::{error::Error, fs};
 
-use crate::language::{lexer::Lexer, parser::Parser};
+use inkwell::context::{self, Context};
+
+use crate::language::{compiler::Compiler, lexer::Lexer, parser::Parser};
 
 mod language;
 
@@ -22,5 +24,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     println!("{:#?}", nodes);
+    let ctx = Context::create();
+    let compiler = Compiler::new(&ctx);
+
     Ok(())
 }
