@@ -1,22 +1,26 @@
-use std::fs;
+use std::{error::Error, fs};
 
 use crate::language::{lexer::Lexer, parser::Parser};
 
 mod language;
 
-fn main() {
-    let text = fs::read_to_string("sigma.ignite").unwrap();
+fn main() -> Result<(), Box<dyn Error>> {
+    let text = fs::read_to_string("sigma.ignite")?;
     let mut lex = Lexer::new(&text);
     let tokens = lex.get_tokens();
 
-    println!("{:#?}", tokens.iter().map(|x| x.kind.clone()).collect::<Vec<_>>());
+    println!(
+        "{:#?}",
+        tokens.iter().map(|x| x.kind.clone()).collect::<Vec<_>>()
+    );
 
     let mut parser = Parser::new(text, tokens);
-	let mut nodes = vec![];
+    let mut nodes = vec![];
 
-	while parser.peek().is_some() {
-		nodes.push(parser.parse().unwrap());
-	}
+    while parser.peek().is_some() {
+        nodes.push(parser.parse()?);
+    }
 
     println!("{:#?}", nodes);
+    Ok(())
 }

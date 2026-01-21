@@ -34,7 +34,7 @@ impl Parser {
         if self.pos < self.tokens.len() as i32 {
             Ok(self.tokens[self.pos as usize].clone())
         } else {
-            Err("Current expected more tokens. Got [EOF].".to_string())
+            Err("Expected more tokens. Got [EOF]. (Current)".to_string())
         }
     }
 
@@ -47,12 +47,15 @@ impl Parser {
     }
 
     fn expect_and_consume(&mut self, kind: TokenKind) -> Result<Token, String> {
-        let next = self.current()?;
-        if next.kind != kind {
-            Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
+        if let Ok(next) = self.current() {
+            if next.kind != kind {
+                Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
+            } else {
+                self.advance()?;
+                Ok(next)
+            }
         } else {
-            self.advance()?;
-            Ok(next)
+            Err(format!("Expected `{kind:?}`, got [EOF]."))
         }
     }
 
@@ -77,8 +80,8 @@ impl Parser {
                 if let Ok(next) = self.current()
                     && next.kind == TokenKind::LPAREN
                 {
-					return self.parse_function_call(expr);
-				}
+                    return self.parse_function_call(expr);
+                }
 
                 Ok(expr)
             }
@@ -326,36 +329,48 @@ impl Parser {
         Ok(left)
     }
 
-	pub fn parse_function_call(&mut self, expr: Node) -> NodeResult {
-		self.advance()?; // consume LPAREN
+    pub fn parse_function_call(&mut self, expr: Node) -> NodeResult {
+        self.advance()?; // consume LPAREN
 
-		let mut args = vec![];
+        let mut args = vec![];
 
-		while let Ok(next) = self.current() {
-			self.skip_new_lines();
+        loop {
+            self.skip_new_lines();
 
-			if next.kind == TokenKind::RPAREN {
-				break;
-			}
+            let next = match self.current() {
+                Ok(x) => x,
+                Err(_) => {
+                    return {
+                        Err("Unexpected end of input in function call. Expected `)`.".to_string())
+                    };
+                }
+            };
 
-			args.push(self.parse_expression()?);
-			self.skip_new_lines();
+            if next.kind == TokenKind::RPAREN {
+                break;
+            }
 
-			if let Ok(next) = self.current() && next.kind == TokenKind::COMMA {
-				self.advance()?;
-				continue;
-			} else {
-				break;
-			}
-		}
+            args.push(self.parse_expression()?);
 
-		self.expect_and_consume(TokenKind::RPAREN)?;
+            self.skip_new_lines();
 
-		Ok(Node::FunctionCall {
-			target: Box::new(expr),
-			args
-		})
-	}
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::COMMA
+            {
+                self.advance()?;
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        self.expect_and_consume(TokenKind::RPAREN)?;
+
+        Ok(Node::FunctionCall {
+            target: Box::new(expr),
+            args,
+        })
+    }
 }
 
 // STATEMENTS
@@ -385,7 +400,7 @@ impl Parser {
 
             let next = match self.current() {
                 Ok(tok) => tok,
-                Err(_) => return Err("Unexpected end of input inside block".to_string()),
+                Err(_) => return Err("Unexpected end of input inside block.".to_string()),
             };
 
             if next.kind == TokenKind::RBRACE {
