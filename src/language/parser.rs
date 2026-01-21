@@ -66,7 +66,7 @@ impl Parser {
             TokenKind::RETURN => self.parse_return(),
             TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
-			TokenKind::WHILE => self.parse_while(),
+            TokenKind::WHILE => self.parse_while(),
 
             _ => self.parse_expression(),
         }
@@ -196,56 +196,22 @@ impl Parser {
                 Ok(expr)
             }
 
-<<<<<<< HEAD
-            TokenKind::FUNC => {
-                self.advance()?;
-                let func_name = self.parse_declaration_name()?;
-                Ok(Node::FuncDeclaration {
-                    name: func_name.to_string(),
-                    params: Box::new(Node::Null),
-                    return_type: Box::new(Node::Null),
-                    block: Box::new(Node::Block { body: vec![] }),
-                })
-            }
-=======
             TokenKind::Identifier => Ok(Node::Variable(current.get_text(&self.source).to_string())),
->>>>>>> bc4b9b1 (Added while loop)
 
             other => Err(format!(
                 "Got unexpected token `{other:?}` while parsing primary."
             )),
         };
 
-<<<<<<< HEAD
-=======
         self.advance()?;
 
->>>>>>> bc4b9b1 (Added while loop)
         node
     }
 
-    pub fn parse_declaration_name(&mut self) -> Result<String, String> {
-        let current = self.current()?;
-
-        // getting the actual name
-        if let TokenKind::Identifier(name) = &current.kind {
-            let name = name.clone();
-            self.advance();
-            Ok(name)
-        } else {
-            Err(format!("Expected an identifier, found {:?}", current.kind))
-        }
-    }
-
     pub fn skip_new_lines(&mut self) {
-        // if let Ok(next) = self.current() {
-        //     if matches!(next.kind, TokenKind::NEWLINE) {
-        //         self.advance().unwrap();
-        //     }
-        // }
         while let Ok(next) = self.current() {
             if matches!(next.kind, TokenKind::NEWLINE) {
-                self.advance();
+                self.advance().unwrap();
             } else {
                 break;
             }
@@ -261,25 +227,16 @@ impl Parser {
 impl Parser {
     fn parse_let(&mut self) -> NodeResult {
         self.advance()?;
-        let name = self.expect_and_consume_identifier()?;
+        let name = self
+            .expect_and_consume(TokenKind::Identifier)?
+            .get_text(&self.source)
+            .to_string();
         self.expect_and_consume(TokenKind::EQUAL)?;
 
         Ok(Node::LetStatement {
             name: name,
             value: Box::new(self.parse_expression()?),
         })
-    }
-
-    pub fn expect_and_consume_identifier(&mut self) -> Result<String, String> {
-        let current = self.current()?;
-
-        if let TokenKind::Identifier(name) = &current.kind {
-            let name = name.clone();
-            let _ = self.advance();
-            Ok(name)
-        } else {
-            Err(format!("Expected identifier, found {:?}", current.kind))
-        }
     }
 
     fn parse_block(&mut self) -> NodeResult {
@@ -362,10 +319,24 @@ impl Parser {
         // consume the `)`
         self.expect_and_consume(TokenKind::RPAREN)?;
 
+        let return_type = if let Ok(next) = self.current()
+            && next.kind == TokenKind::ARROW
+        {
+            self.advance()?;
+            Some(
+                self.expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&self.source)
+                    .to_string(),
+            )
+        } else {
+            None
+        };
+
         // parse a `block`
         Ok(Node::FunctionDefinition {
             name,
             args,
+            return_type,
             block: Box::new(self.parse_block()?),
         })
     }
@@ -384,27 +355,27 @@ impl Parser {
         }
     }
 
-	/// Just advance and return whatever you want.
-	fn simple_parse_keyword(&mut self, node: Node) -> NodeResult {
-		self.advance()?;
-		Ok(node)
-	}
+    /// Just advance and return whatever you want.
+    fn simple_parse_keyword(&mut self, node: Node) -> NodeResult {
+        self.advance()?;
+        Ok(node)
+    }
 
-	fn parse_while(&mut self) -> NodeResult {
-		self.advance()?;
+    fn parse_while(&mut self) -> NodeResult {
+        self.advance()?;
 
-		Ok(Node::WhileLoop {
-			condition: Box::new(self.parse_expression()?),
-			block: Box::new(self.parse_block()?),
-		})
-	}
+        Ok(Node::WhileLoop {
+            condition: Box::new(self.parse_expression()?),
+            block: Box::new(self.parse_block()?),
+        })
+    }
 
-	// fn parse_for(&mut self) -> NodeResult {
-	// 	self.advance()?;
+    // fn parse_for(&mut self) -> NodeResult {
+    // 	self.advance()?;
 
-	// 	Ok(Node::WhileLoop {
-	// 		condition: Box::new(self.parse_expression()?),
-	// 		block: Box::new(self.parse_block()?),
-	// 	})
-	// }
+    // 	Ok(Node::WhileLoop {
+    // 		condition: Box::new(self.parse_expression()?),
+    // 		block: Box::new(self.parse_block()?),
+    // 	})
+    // }
 }

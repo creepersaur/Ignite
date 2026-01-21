@@ -38,6 +38,7 @@ pub enum Node {
 	// Arguments are in the tuple -> (name: String, type: Option<String>)
 	FunctionDefinition {
 		name: String,
+		return_type: Option<String>,
 		args: Vec<(String, Option<String>)>,
 		block: Box<Node>
 	},

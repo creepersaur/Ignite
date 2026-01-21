@@ -25,7 +25,7 @@ impl Token {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     NEWLINE,
-    Identifier(String),
+    Identifier,
 
     // LITERALS
     IntLiteral(i32),
@@ -72,5 +72,6 @@ pub enum TokenKind {
 	BACKTICK,
 	PIPE,
 	DOT,
-	COMMA
+	COMMA,
+	ARROW
 }

@@ -1,6 +1,11 @@
-use crate::language::token::{Token, TokenKind::{self, *}, TokenRange};
+use crate::language::token::{
+    Token,
+    TokenKind::{self, *},
+    TokenRange,
+};
 
 const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?\n";
+const DOUBLE: [&str; 1] = ["->"];
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -33,7 +38,7 @@ impl Lexer {
 
     pub fn get_tokens(&mut self) -> Vec<Token> {
         let mut tokens = vec![];
-		let mut instr = None;
+        let mut instr = None;
 
         loop {
             if self.cur_char.is_none() {
@@ -58,11 +63,23 @@ impl Lexer {
                 }
 
                 if instr.is_none() && PUNCTUATION.contains(c) {
-					if c == '.' && current_token.parse::<i32>().is_ok() {
-						current_token.push(c);
+                    if c == '.' && current_token.parse::<i32>().is_ok() {
+                        current_token.push(c);
+                        self.advance();
+                        continue;
+                    }
+
+                    if tokens.len() > 0
+                        && DOUBLE.contains(&format!("{}{c}", self.chars[self.pos as usize - 1]).as_str())
+                    {
+						tokens.pop();
+						current_token = format!("{}{c}", self.chars[self.pos as usize - 1]);
+						
+						tokens.push(Self::identify(&current_token, start_pos - 1));
+						current_token.clear();
 						self.advance();
-						continue;
-					}
+						break;
+                    }
 
                     if !current_token.is_empty() {
                         tokens.push(Self::identify(&current_token, start_pos));
@@ -77,15 +94,15 @@ impl Lexer {
                 } else {
                     current_token.push(c);
 
-					if c == '"' || c == '\'' {
-						if let Some(s) = instr {
-							if s == c {
-								instr = None;
-							}
-						} else {
-							instr = Some(c);
-						}
-					}
+                    if c == '"' || c == '\'' {
+                        if let Some(s) = instr {
+                            if s == c {
+                                instr = None;
+                            }
+                        } else {
+                            instr = Some(c);
+                        }
+                    }
                 }
 
                 self.advance();
@@ -108,14 +125,14 @@ impl Lexer {
         let kind = match text {
             "\n" => NEWLINE,
 
-			// Keywords
+            // Keywords
             "let" => LET,
-			"func" => FUNC, 
+            "func" => FUNC,
             "return" => RETURN,
-			"for" => FOR,
-			"break" => BREAK,
-			"continue" => CONTINUE,
-			"while" => WHILE,
+            "for" => FOR,
+            "break" => BREAK,
+            "continue" => CONTINUE,
+            "while" => WHILE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()
@@ -145,8 +162,9 @@ impl Lexer {
             "~" => TILDA,
             "`" => BACKTICK,
             "|" => PIPE,
-			"." => DOT,
-			"," => COMMA,
+            "." => DOT,
+            "," => COMMA,
+			"->" => ARROW,
 
             _ => Self::identify_other(text),
         };
@@ -154,19 +172,19 @@ impl Lexer {
         Token::new(kind, TokenRange { start, end })
     }
 
-	pub fn identify_other(text: &str) -> TokenKind {
-		if let Ok(x) = text.parse::<i32>() {
-			return IntLiteral(x)
-		} else if let Ok(x) = text.parse::<f32>() {
-			return FloatLiteral(x)
-		} else if let Ok(x) = text.parse::<bool>() {
-			return BooleanLiteral(x)
-		} else if text.starts_with('"') && text.ends_with('"') {
-			return StringLiteral(text.to_string());
-		} else if text.starts_with('\'') && text.ends_with('\'') {
-			return CharLiteral('x');
-		}
+    pub fn identify_other(text: &str) -> TokenKind {
+        if let Ok(x) = text.parse::<i32>() {
+            return IntLiteral(x);
+        } else if let Ok(x) = text.parse::<f32>() {
+            return FloatLiteral(x);
+        } else if let Ok(x) = text.parse::<bool>() {
+            return BooleanLiteral(x);
+        } else if text.starts_with('"') && text.ends_with('"') {
+            return StringLiteral(text.to_string());
+        } else if text.starts_with('\'') && text.ends_with('\'') {
+            return CharLiteral('x');
+        }
 
-		Identifier(text.to_string())
-	}
+        Identifier
+    }
 }
