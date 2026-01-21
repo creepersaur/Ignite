@@ -5,7 +5,7 @@ use crate::language::token::{
 };
 
 const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?\n";
-const DOUBLE: [&str; 1] = ["->"];
+const DOUBLE: [&str; 5] = ["->", "||", "&&", "<=", ">=",];
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -135,6 +135,7 @@ impl Lexer {
             "continue" => CONTINUE,
             "while" => WHILE,
             "if" => IF,
+			"else" => ELSE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()

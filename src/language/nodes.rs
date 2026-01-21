@@ -67,6 +67,7 @@ pub enum Node {
 	IfStatement {
 		condition: Box<Node>,
 		block: Box<Node>,
-		else_block: Box<Node>,
+		elifs: Vec<(Box<Node>, Box<Node>)>,
+		else_block: Option<Box<Node>>,
 	}
 }

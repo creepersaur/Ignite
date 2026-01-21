@@ -1,3 +1,7 @@
-while x > 10 {
-    print("yipee")
+if x > 10 {
+	print("yes")
+} else if x < 5 {
+	print("maybe")
+} else {
+	print("no")
 }

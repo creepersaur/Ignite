@@ -221,10 +221,10 @@ impl Parser {
     }
 
     pub fn parse_expression(&mut self) -> NodeResult {
-        self.parse_condition()
+        self.parse_logical()
     }
 
-    pub fn parse_condition(&mut self) -> NodeResult {
+    pub fn parse_logical(&mut self) -> NodeResult {
         self.parse_or()
     }
 
@@ -448,15 +448,33 @@ impl Parser {
 
         let condition = self.parse_expression()?;
         let main_block = self.parse_block()?;
+		let mut elifs = vec![];
+		let mut else_block = None;
 
-        let _ = self.expect_and_consume(TokenKind::ELSE);
+        loop {
+			if let Ok(next) = self.current() && next.kind == TokenKind::ELSE {
+				self.advance()?;
 
-        let else_block = self.parse_block()?;
+				if let Ok(next) = self.current() && next.kind == TokenKind::IF {
+					self.advance()?;
+
+					let elif_condition = self.parse_expression()?;
+					let elif_block = self.parse_block()?;
+
+					elifs.push((Box::new(elif_condition), Box::new(elif_block)));
+				} else {
+					else_block = Some(Box::new(self.parse_block()?));
+				}
+			} else {
+				break;
+			}
+		}
 
         Ok(Node::IfStatement {
             condition: Box::new(condition),
             block: Box::new(main_block),
-            else_block: Box::new(else_block),
+            elifs,
+			else_block,
         })
     }
 
