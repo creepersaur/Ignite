@@ -47,8 +47,19 @@ pub enum Node {
 	BreakStatement,
 	ContinueStatement,
 
+	// Loops
 	WhileLoop {
 		condition: Box<Node>,
 		block: Box<Node>
-	}
+	},
+	RangedForLoop {
+		var_name: String,
+		start: Box<Node>,
+		end: Box<Node>,
+		step: Option<Box<Node>>
+	},
+	IterableForLoop {
+		var_name: String,
+		iterable: Box<Node>,
+	},
 }
