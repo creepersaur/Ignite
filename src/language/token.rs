@@ -37,11 +37,13 @@ pub enum TokenKind {
     // Keywords
     RETURN,
     LET,
-	FUNC,
-	FOR,
-	BREAK,
-	CONTINUE,
-	WHILE,
+    FUNC,
+    FOR,
+    BREAK,
+    CONTINUE,
+    WHILE,
+    IF,
+    ELSE,
 
     // Punctuation
     LPAREN, // Parenthesis ()
@@ -50,28 +52,31 @@ pub enum TokenKind {
     RBRACK,
     LBRACE, // Braces {}
     RBRACE,
-	PLUS,
-	MINUS,
-	STAR,
-	SLASH,
-	MOD,
-	POW,
-	DOLLAR,
-	HASH,
-	AT,
-	BANG,
-	EQUAL,
-	GR,
-	LT,
-	GE,
-	LE,
-	COLON,
-	SEMI,
-	QUESTION,
-	TILDA,
-	BACKTICK,
-	PIPE,
-	DOT,
-	COMMA,
-	ARROW
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    MOD,
+    POW,
+    DOLLAR,
+    HASH,
+    AT,
+    BANG,
+    EQUAL, // ==
+    GR, // >
+    LT, // <
+    GE, // >=
+    LE, // <=
+	NE, // !=
+	OR, // or, ||
+	AND, // and, &&
+    COLON,
+    SEMI,
+    QUESTION,
+    TILDA,
+    BACKTICK,
+    PIPE,
+    DOT,
+    COMMA,
+    ARROW,
 }

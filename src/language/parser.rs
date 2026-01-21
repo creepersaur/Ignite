@@ -68,6 +68,7 @@ impl Parser {
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
             TokenKind::WHILE => self.parse_while(),
             TokenKind::FOR => self.parse_for(),
+            TokenKind::IF => self.parse_if(),
 
             _ => self.parse_expression(),
         }
@@ -220,7 +221,98 @@ impl Parser {
     }
 
     pub fn parse_expression(&mut self) -> NodeResult {
-        self.parse_add_sub()
+        self.parse_condition()
+    }
+
+    pub fn parse_condition(&mut self) -> NodeResult {
+        self.parse_or()
+    }
+
+    pub fn parse_or(&mut self) -> NodeResult {
+        let mut left = self.parse_and()?;
+
+        while let Ok(next) = self.current() {
+            if next.kind != TokenKind::OR {
+                break;
+            }
+
+            let op = self.advance()?.kind;
+            let right = self.parse_and()?;
+
+            left = Node::BinOp {
+                left: Box::new(left),
+                right: Box::new(right),
+                op,
+            };
+        }
+
+        Ok(left)
+    }
+
+    pub fn parse_and(&mut self) -> NodeResult {
+        let mut left = self.parse_equality()?;
+
+        while let Ok(next) = self.current() {
+            if next.kind != TokenKind::AND {
+                break;
+            }
+
+            let op = self.advance()?.kind;
+            let right = self.parse_equality()?;
+
+            left = Node::BinOp {
+                left: Box::new(left),
+                right: Box::new(right),
+                op,
+            };
+        }
+
+        Ok(left)
+    }
+
+    pub fn parse_equality(&mut self) -> NodeResult {
+        let mut left = self.parse_comparison()?;
+
+        while let Ok(next) = self.current() {
+            if !matches!(next.kind, TokenKind::EQUAL | TokenKind::NE) {
+                break;
+            }
+
+            let op = self.advance()?.kind;
+            let right = self.parse_comparison()?;
+
+            left = Node::BinOp {
+                left: Box::new(left),
+                right: Box::new(right),
+                op,
+            };
+        }
+
+        Ok(left)
+    }
+
+    pub fn parse_comparison(&mut self) -> NodeResult {
+        let mut left = self.parse_add_sub()?;
+
+        while let Ok(next) = self.current() {
+            if !matches!(
+                next.kind,
+                TokenKind::LT | TokenKind::LE | TokenKind::GR | TokenKind::GE
+            ) {
+                break;
+            }
+
+            let op = self.advance()?.kind;
+            let right = self.parse_add_sub()?;
+
+            left = Node::BinOp {
+                left: Box::new(left),
+                right: Box::new(right),
+                op,
+            };
+        }
+
+        Ok(left)
     }
 }
 
@@ -349,6 +441,23 @@ impl Parser {
         } else {
             Ok(Node::ReturnStatement(None))
         }
+    }
+
+    pub fn parse_if(&mut self) -> NodeResult {
+        self.advance()?;
+
+        let condition = self.parse_expression()?;
+        let main_block = self.parse_block()?;
+
+        let _ = self.expect_and_consume(TokenKind::ELSE);
+
+        let else_block = self.parse_block()?;
+
+        Ok(Node::IfStatement {
+            condition: Box::new(condition),
+            block: Box::new(main_block),
+            else_block: Box::new(else_block),
+        })
     }
 
     /// Just advance and return whatever you want.

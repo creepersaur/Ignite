@@ -62,4 +62,11 @@ pub enum Node {
 		var_name: String,
 		iterable: Box<Node>,
 	},
+
+	// Logical Operations
+	IfStatement {
+		condition: Box<Node>,
+		block: Box<Node>,
+		else_block: Box<Node>,
+	}
 }

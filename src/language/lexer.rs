@@ -70,15 +70,16 @@ impl Lexer {
                     }
 
                     if tokens.len() > 0
-                        && DOUBLE.contains(&format!("{}{c}", self.chars[self.pos as usize - 1]).as_str())
+                        && DOUBLE
+                            .contains(&format!("{}{c}", self.chars[self.pos as usize - 1]).as_str())
                     {
-						tokens.pop();
-						current_token = format!("{}{c}", self.chars[self.pos as usize - 1]);
-						
-						tokens.push(Self::identify(&current_token, start_pos - 1));
-						current_token.clear();
-						self.advance();
-						break;
+                        tokens.pop();
+                        current_token = format!("{}{c}", self.chars[self.pos as usize - 1]);
+
+                        tokens.push(Self::identify(&current_token, start_pos - 1));
+                        current_token.clear();
+                        self.advance();
+                        break;
                     }
 
                     if !current_token.is_empty() {
@@ -133,6 +134,7 @@ impl Lexer {
             "break" => BREAK,
             "continue" => CONTINUE,
             "while" => WHILE,
+            "if" => IF,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()
@@ -156,6 +158,11 @@ impl Lexer {
             "<" => LT,
             ">=" => GE,
             "<=" => LE,
+            "!=" => NE,
+            "or" => OR,
+            "||" => OR,
+            "and" => AND,
+            "&&" => AND,
             ":" => COLON,
             ";" => SEMI,
             "?" => QUESTION,
@@ -164,7 +171,7 @@ impl Lexer {
             "|" => PIPE,
             "." => DOT,
             "," => COMMA,
-			"->" => ARROW,
+            "->" => ARROW,
 
             _ => Self::identify_other(text),
         };
