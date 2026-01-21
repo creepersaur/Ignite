@@ -67,7 +67,7 @@ impl Parser {
             TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
             TokenKind::WHILE => self.parse_while(),
-			TokenKind::FOR => self.parse_for(),
+            TokenKind::FOR => self.parse_for(),
 
             _ => self.parse_expression(),
         }
@@ -267,18 +267,15 @@ impl Parser {
     }
 
     fn parse_function_def(&mut self) -> NodeResult {
-        self.advance()?; // CONSUME THE `func`
+        self.advance()?;
 
-        // Get the text of the name
         let name = self
             .expect_and_consume(TokenKind::Identifier)?
             .get_text(&self.source)
             .to_string();
 
-        // consume the `(`
         self.expect_and_consume(TokenKind::LPAREN)?;
 
-        // Also parse arguments (x or x: int)
         let mut args = vec![];
 
         while let Ok(next) = self.current() {
@@ -317,7 +314,6 @@ impl Parser {
             }
         }
 
-        // consume the `)`
         self.expect_and_consume(TokenKind::RPAREN)?;
 
         let return_type = if let Ok(next) = self.current()
@@ -333,7 +329,6 @@ impl Parser {
             None
         };
 
-        // parse a `block`
         Ok(Node::FunctionDefinition {
             name,
             args,
@@ -413,7 +408,7 @@ impl Parser {
                 iterable: Box::new(iterable),
             });
         } else {
-			Err("Expected equals (=) or colon (:) after variable name.".to_string())
-		}
+            Err("Expected equals (=) or colon (:) after variable name.".to_string())
+        }
     }
 }
