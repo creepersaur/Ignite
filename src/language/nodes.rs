@@ -43,6 +43,11 @@ pub enum Node {
 		block: Box<Node>
 	},
 
+	FunctionCall {
+		target: Box<Node>,
+		args: Vec<Node>
+	},
+
 	ReturnStatement(Option<Box<Node>>),
 	BreakStatement,
 	ContinueStatement,
@@ -67,7 +72,7 @@ pub enum Node {
 	IfStatement {
 		condition: Box<Node>,
 		block: Box<Node>,
-		elifs: Vec<(Box<Node>, Box<Node>)>,
+		elifs: Vec<(Node, Node)>,
 		else_block: Option<Box<Node>>,
 	}
 }

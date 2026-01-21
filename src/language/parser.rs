@@ -70,7 +70,18 @@ impl Parser {
             TokenKind::FOR => self.parse_for(),
             TokenKind::IF => self.parse_if(),
 
-            _ => self.parse_expression(),
+            _ => {
+                let expr = self.parse_expression()?;
+
+                // FUNCTION CALL
+                if let Ok(next) = self.current()
+                    && next.kind == TokenKind::LPAREN
+                {
+					return self.parse_function_call(expr);
+				}
+
+                Ok(expr)
+            }
         }
     }
 }
@@ -314,6 +325,37 @@ impl Parser {
 
         Ok(left)
     }
+
+	pub fn parse_function_call(&mut self, expr: Node) -> NodeResult {
+		self.advance()?; // consume LPAREN
+
+		let mut args = vec![];
+
+		while let Ok(next) = self.current() {
+			self.skip_new_lines();
+
+			if next.kind == TokenKind::RPAREN {
+				break;
+			}
+
+			args.push(self.parse_expression()?);
+			self.skip_new_lines();
+
+			if let Ok(next) = self.current() && next.kind == TokenKind::COMMA {
+				self.advance()?;
+				continue;
+			} else {
+				break;
+			}
+		}
+
+		self.expect_and_consume(TokenKind::RPAREN)?;
+
+		Ok(Node::FunctionCall {
+			target: Box::new(expr),
+			args
+		})
+	}
 }
 
 // STATEMENTS
@@ -448,33 +490,37 @@ impl Parser {
 
         let condition = self.parse_expression()?;
         let main_block = self.parse_block()?;
-		let mut elifs = vec![];
-		let mut else_block = None;
+        let mut elifs = vec![];
+        let mut else_block = None;
 
         loop {
-			if let Ok(next) = self.current() && next.kind == TokenKind::ELSE {
-				self.advance()?;
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::ELSE
+            {
+                self.advance()?;
 
-				if let Ok(next) = self.current() && next.kind == TokenKind::IF {
-					self.advance()?;
+                if let Ok(next) = self.current()
+                    && next.kind == TokenKind::IF
+                {
+                    self.advance()?;
 
-					let elif_condition = self.parse_expression()?;
-					let elif_block = self.parse_block()?;
+                    let elif_condition = self.parse_expression()?;
+                    let elif_block = self.parse_block()?;
 
-					elifs.push((Box::new(elif_condition), Box::new(elif_block)));
-				} else {
-					else_block = Some(Box::new(self.parse_block()?));
-				}
-			} else {
-				break;
-			}
-		}
+                    elifs.push((elif_condition, elif_block));
+                } else {
+                    else_block = Some(Box::new(self.parse_block()?));
+                }
+            } else {
+                break;
+            }
+        }
 
         Ok(Node::IfStatement {
             condition: Box::new(condition),
             block: Box::new(main_block),
             elifs,
-			else_block,
+            else_block,
         })
     }
 
