@@ -65,13 +65,16 @@ impl Parser {
         match self.current()?.kind {
             TokenKind::LET => self.parse_let(),
             TokenKind::LBRACE => self.parse_block(),
-            TokenKind::FUNC => self.parse_function_def(),
             TokenKind::RETURN => self.parse_return(),
             TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
             TokenKind::WHILE => self.parse_while(),
             TokenKind::FOR => self.parse_for(),
             TokenKind::IF => self.parse_if(),
+            TokenKind::FUNC => self.parse_function_def(),
+			TokenKind::CLASS => self.parse_class_def(),
+			TokenKind::STRUCT => self.parse_struct_def(),
+			TokenKind::INTERFACE => self.parse_interface_def(),
 
             _ => {
                 let expr = self.parse_expression()?;
@@ -182,6 +185,7 @@ impl Parser {
         let current = self.current()?;
 
         let node = match current.kind {
+			TokenKind::NULL => Ok(Node::NULL),
             TokenKind::IntLiteral(x) => Ok(Node::IntLiteral(x)),
             TokenKind::FloatLiteral(x) => Ok(Node::FloatLiteral(x)),
             TokenKind::BooleanLiteral(x) => Ok(Node::BooleanLiteral(x)),
@@ -646,4 +650,17 @@ impl Parser {
             Err("Expected equals (=) or colon (:) after variable name.".to_string())
         }
     }
+
+	fn parse_class_def(&mut self) -> NodeResult {
+		todo!()
+		// self.advance()?;
+	}
+
+	fn parse_struct_def(&mut self) -> NodeResult {
+		todo!()
+	}
+
+	fn parse_interface_def(&mut self) -> NodeResult {
+		todo!()
+	}
 }

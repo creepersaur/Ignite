@@ -5,7 +5,7 @@ use crate::language::token::{
 };
 
 const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?\n";
-const DOUBLE: [&str; 5] = ["->", "||", "&&", "<=", ">=",];
+const DOUBLE: [&str; 5] = ["->", "||", "&&", "<=", ">="];
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -17,13 +17,28 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(text: &str) -> Self {
         let mut new_lexer = Self {
-            chars: text.chars().collect(),
+            chars: Self::apply_comments(text),
             pos: -1,
             cur_char: None,
         };
 
         new_lexer.advance();
         new_lexer
+    }
+
+    pub fn apply_comments(text: &str) -> Vec<char> {
+        text.lines()
+            .map(|x| {
+                if let Some((left, _)) = x.split_once("//") {
+                    left
+                } else {
+                    x
+                }
+            })
+            .collect::<Vec<&str>>()
+            .join("\n")
+            .chars()
+            .collect()
     }
 
     pub fn advance(&mut self) {
@@ -125,6 +140,7 @@ impl Lexer {
 
         let kind = match text {
             "\n" => NEWLINE,
+			"null" => NULL,
 
             // Keywords
             "let" => LET,
@@ -135,7 +151,10 @@ impl Lexer {
             "continue" => CONTINUE,
             "while" => WHILE,
             "if" => IF,
-			"else" => ELSE,
+            "else" => ELSE,
+			"class" => CLASS,
+			"struct" => STRUCT,
+			"interface" => INTERFACE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()

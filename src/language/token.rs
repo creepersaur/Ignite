@@ -28,6 +28,7 @@ pub enum TokenKind {
     Identifier,
 
     // LITERALS
+	NULL,
     IntLiteral(i32),
     FloatLiteral(f32),
     StringLiteral(String),
@@ -44,6 +45,9 @@ pub enum TokenKind {
     WHILE,
     IF,
     ELSE,
+	CLASS,
+	INTERFACE,
+	STRUCT,
 
     // Punctuation
     LPAREN, // Parenthesis ()
