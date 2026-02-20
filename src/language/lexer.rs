@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::language::token::{
     Token,
     TokenKind::{self, *},
@@ -144,7 +146,7 @@ impl Lexer {
 
             // Keywords
             "let" => LET,
-            "func" => FUNC,
+            "fn" => FN,
             "return" => RETURN,
             "for" => FOR,
             "break" => BREAK,
@@ -153,8 +155,8 @@ impl Lexer {
             "if" => IF,
             "else" => ELSE,
 			"class" => CLASS,
-			"struct" => STRUCT,
-			"interface" => INTERFACE,
+			// "struct" => STRUCT,
+			// "interface" => INTERFACE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()

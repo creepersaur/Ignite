@@ -38,7 +38,7 @@ pub enum TokenKind {
     // Keywords
     RETURN,
     LET,
-    FUNC,
+    FN,
     FOR,
     BREAK,
     CONTINUE,
@@ -46,8 +46,8 @@ pub enum TokenKind {
     IF,
     ELSE,
 	CLASS,
-	INTERFACE,
-	STRUCT,
+	// INTERFACE,
+	// STRUCT,
 
     // Punctuation
     LPAREN, // Parenthesis ()

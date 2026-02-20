@@ -1,32 +1,23 @@
-use std::{error::Error, fs};
-
-// use inkwell::context::{self, Context};
-
+#[allow(unused)]
+use std::{fs, error::Error, rc::Rc};
 use crate::language::{lexer::Lexer, parser::Parser};
 
 mod language;
+mod virtual_machine;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let text = fs::read_to_string("sigma.ignite")?;
     let mut lex = Lexer::new(&text);
     let tokens = lex.get_tokens();
 
-    println!(
-        "{:#?}",
-        tokens.iter().map(|x| x.kind.clone()).collect::<Vec<_>>()
-    );
-
     let mut parser = Parser::new(text, tokens);
     let mut nodes = vec![];
 
-    while parser.peek().is_some() {
+    while parser.current().is_ok() {
         nodes.push(parser.parse()?);
     }
 
-    println!("{:#?}", nodes);
-
-    // let ctx = Context::create();
-    // let compiler = Compiler::new(&ctx);
+	println!("{nodes:#?}");
 
     Ok(())
 }

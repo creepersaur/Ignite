@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::language::{
     nodes::Node,
     token::{Token, TokenKind},
@@ -30,7 +32,7 @@ impl Parser {
     }
 
     #[allow(unused)]
-    fn current(&self) -> TokenResult {
+    pub fn current(&self) -> TokenResult {
         if self.pos < self.tokens.len() as i32 {
             Ok(self.tokens[self.pos as usize].clone())
         } else {
@@ -47,11 +49,15 @@ impl Parser {
     }
 
     fn expect_and_consume(&mut self, kind: TokenKind) -> Result<Token, String> {
+        self.skip_new_lines();
+
         if let Ok(next) = self.current() {
             if next.kind != kind {
                 Err(format!("Expected `{kind:?}`, got `{:?}`", next.kind))
             } else {
                 self.advance()?;
+                self.skip_new_lines();
+
                 Ok(next)
             }
         } else {
@@ -71,10 +77,8 @@ impl Parser {
             TokenKind::WHILE => self.parse_while(),
             TokenKind::FOR => self.parse_for(),
             TokenKind::IF => self.parse_if(),
-            TokenKind::FUNC => self.parse_function_def(),
-			TokenKind::CLASS => self.parse_class_def(),
-			TokenKind::STRUCT => self.parse_struct_def(),
-			TokenKind::INTERFACE => self.parse_interface_def(),
+            TokenKind::FN => self.parse_function_def(),
+            TokenKind::CLASS => self.parse_class_def(),
 
             _ => {
                 let expr = self.parse_expression()?;
@@ -185,7 +189,7 @@ impl Parser {
         let current = self.current()?;
 
         let node = match current.kind {
-			TokenKind::NULL => Ok(Node::NULL),
+            TokenKind::NULL => Ok(Node::NULL),
             TokenKind::IntLiteral(x) => Ok(Node::IntLiteral(x)),
             TokenKind::FloatLiteral(x) => Ok(Node::FloatLiteral(x)),
             TokenKind::BooleanLiteral(x) => Ok(Node::BooleanLiteral(x)),
@@ -271,6 +275,8 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> NodeResult {
+        self.skip_new_lines();
+
         let expr = self.parse_logical();
 
         self.skip_new_lines();
@@ -423,12 +429,18 @@ impl Parser {
             .get_text(&self.source)
             .to_string();
 
-        self.expect_and_consume(TokenKind::EQUAL)?;
+        self.skip_new_lines();
 
-        Ok(Node::LetStatement {
-            name: name,
-            value: Box::new(self.parse_expression()?),
-        })
+        let value = if let Ok(next) = self.current()
+            && next.kind == TokenKind::EQUAL
+        {
+            self.expect_and_consume(TokenKind::EQUAL)?;
+            Some(Box::new(self.parse_expression()?))
+        } else {
+            None
+        };
+
+        Ok(Node::LetStatement { name, value })
     }
 
     fn parse_block(&mut self) -> NodeResult {
@@ -444,11 +456,14 @@ impl Parser {
                 Err(_) => return Err("Unexpected end of input inside block.".to_string()),
             };
 
-            if next.kind == TokenKind::RBRACE {
-                break;
-            }
+            match next.kind {
+                TokenKind::RBRACE => break,
+                TokenKind::SEMI => {
+                    self.advance()?;
+                }
 
-            body.push(self.parse()?);
+                _ => body.push(self.parse()?),
+            }
         }
 
         self.expect_and_consume(TokenKind::RBRACE)?;
@@ -651,16 +666,91 @@ impl Parser {
         }
     }
 
-	fn parse_class_def(&mut self) -> NodeResult {
-		todo!()
-		// self.advance()?;
-	}
+    fn parse_class_def(&mut self) -> NodeResult {
+        self.advance()?;
+        self.skip_new_lines();
 
-	fn parse_struct_def(&mut self) -> NodeResult {
-		todo!()
-	}
+        let name = self
+            .expect_and_consume(TokenKind::Identifier)?
+            .get_text(&self.source)
+            .to_string();
 
-	fn parse_interface_def(&mut self) -> NodeResult {
-		todo!()
-	}
+        self.skip_new_lines();
+
+        let mut interfaces = vec![];
+        if let Ok(next) = self.current()
+            && next.kind == TokenKind::COLON
+        {
+            self.expect_and_consume(TokenKind::COLON)?;
+            interfaces.push(
+                self.expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&self.source)
+                    .to_string(),
+            );
+
+            loop {
+                self.skip_new_lines();
+
+                if let Ok(next) = self.current() {
+                    if next.kind == TokenKind::LBRACE {
+                        break;
+                    }
+                } else {
+                    return Err(
+                        "Unexpected end of input while parsing class interfaces.".to_string()
+                    );
+                }
+
+                self.expect_and_consume(TokenKind::COMMA)?;
+
+                interfaces.push(
+                    self.expect_and_consume(TokenKind::Identifier)?
+                        .get_text(&self.source)
+                        .to_string(),
+                );
+            }
+        }
+
+        self.expect_and_consume(TokenKind::LBRACE)?;
+
+        let mut let_statements = vec![];
+        let mut functions = vec![];
+
+        loop {
+            self.skip_new_lines();
+
+            if let Ok(next) = self.current() {
+                if next.kind == TokenKind::RBRACE {
+                    break;
+                }
+            } else {
+                return Err("Unexpected end of input while parsing class.".to_string());
+            }
+
+            if let Ok(next) = self.current() {
+                match next.kind {
+                    TokenKind::FN => functions.push(self.parse_function_def()?),
+                    TokenKind::LET => let_statements.push(self.parse_let()?),
+                    TokenKind::SEMI => {
+                        self.advance()?;
+                    }
+
+                    _ => {
+                        return Err(format!(
+                            "Class definitions can only take functions or let statements."
+                        ));
+                    }
+                }
+            }
+        }
+
+        self.expect_and_consume(TokenKind::RBRACE)?;
+
+        Ok(Node::ClassDef {
+            name,
+            interfaces,
+            let_statements,
+            functions,
+        })
+    }
 }
