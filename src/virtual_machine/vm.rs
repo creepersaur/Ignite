@@ -1,4 +1,4 @@
-use crate::virtual_machine::{chunk::Chunk, inst::Inst, value::Value};
+use crate::virtual_machine::{builtin::*, chunk::Chunk, inst::Inst, value::Value};
 use bincode::config;
 use simply_colored::*;
 use std::{collections::HashMap, rc::Rc};
@@ -9,10 +9,10 @@ pub struct VM {
     pub pos: usize,
     pub instructions: Vec<Inst>,
     pub stack: Vec<Value>,
-	pub function_stack: Vec<usize>,
+    pub call_stack: Vec<usize>,
     pub constants: Vec<Value>,
-    pub globals: HashMap<Rc<String>, Value>,
-    pub locals: Vec<HashMap<Rc<String>, Value>>,
+    pub globals: HashMap<Rc<String>, (Value, bool)>,
+    pub locals: Vec<HashMap<Rc<String>, (Value, bool)>>,
 }
 
 #[allow(unused)]
@@ -22,7 +22,7 @@ impl VM {
             pos: 0,
             instructions: vec![],
             stack: Vec::with_capacity(100),
-			function_stack: Vec::with_capacity(100),
+            call_stack: Vec::with_capacity(100),
             constants: Vec::with_capacity(100),
             globals: HashMap::new(),
             locals: vec![HashMap::new()],
@@ -111,6 +111,21 @@ impl VM {
                 Inst::POP => {
                     self.pop();
                 }
+                Inst::DEFAULT => {
+                    let default_value = self.pop();
+                    let given_value = self.pop();
+
+                    if let Value::NIL = given_value {
+                        self.stack.push(default_value);
+                    } else {
+                        self.stack.push(given_value);
+                    }
+                }
+                Inst::DEFAULTNIL => {
+                    if self.stack.len() == 0 {
+                        self.stack.push(Value::NIL)
+                    }
+                }
                 Inst::PUSH(value) => self.stack.push(value.clone()),
 
                 Inst::ADD => {
@@ -149,7 +164,7 @@ impl VM {
 
                         (Value::String(x), Value::String(y)) => Rc::ptr_eq(&x, &y) || *x == *y,
 
-                        _ => panic!("Cannot EQ"),
+                        _ => false,
                     };
 
                     self.stack.push(Value::Bool(result));
@@ -194,18 +209,33 @@ impl VM {
                         panic!("LE expects numbers");
                     }
                 }
+                Inst::AND => {
+                    let (a, b) = self.pop_two();
+
+                    self.stack.push(Value::Bool(a.is_truthy() && b.is_truthy()));
+                }
+                Inst::OR => {
+                    let (a, b) = self.pop_two();
+
+                    self.stack.push(Value::Bool(a.is_truthy() || b.is_truthy()));
+                }
+                Inst::NOT => {
+                    let res = self.pop().is_truthy();
+                    self.stack.push(Value::Bool(!res));
+                }
 
                 Inst::LOADCONST(idx) => self.stack.push(self.constants[*idx].clone()),
                 Inst::STOREGLOBAL(name) => {
                     let name = name.clone();
                     let value = self.pop();
-                    self.globals.insert(name, value);
+                    self.globals.insert(name, (value, false));
                 }
                 Inst::LOADGLOBAL(name) => {
                     self.stack.push(
                         self.globals
                             .get(name)
                             .expect("Global `{name}` doesn't exist.")
+                            .0
                             .clone(),
                     );
                 }
@@ -217,7 +247,7 @@ impl VM {
                 Inst::STORELOCAL(name) => {
                     let name = name.clone();
                     let value = self.pop();
-                    self.locals.last_mut().unwrap().insert(name, value);
+                    self.locals.last_mut().unwrap().insert(name, (value, false));
                 }
                 Inst::LOADLOCAL(name) => {
                     let mut found = None;
@@ -229,10 +259,56 @@ impl VM {
                         }
                     }
 
-                    if let Some(val) = found {
+                    if let Some((val, _)) = found {
                         self.stack.push(val);
                     } else {
                         panic!("Unknown local variable: {name}");
+                    }
+                }
+
+                Inst::LOAD(name) => {
+                    let mut found = None;
+
+                    for scope in self.locals.iter().rev() {
+                        if let Some(val) = scope.get(name) {
+                            found = Some(val.clone());
+                            break;
+                        }
+                    }
+
+                    if let Some((val, _)) = found {
+                        self.stack.push(val);
+                    } else if let Some((val, _)) = self.globals.get(name) {
+                        self.stack.push(val.clone());
+                    } else {
+                        panic!("Unknown local/global variable: {name}");
+                    }
+                }
+                Inst::SETVAR(name) => {
+                    let mut found_idx = None;
+
+                    for i in (0..self.locals.len()).rev() {
+                        if let Some((_, is_const)) = self.locals[i].get(name) {
+                            if *is_const {
+                                panic!("Cannot set a constant `{name}`");
+                            } else {
+                                found_idx = Some(i);
+                            }
+                            break;
+                        }
+                    }
+                    if let Some(scope) = found_idx {
+                        let name = name.clone();
+                        let value = self.pop();
+                        self.locals[scope].insert(name, (value, false));
+                    } else if let Some((_, is_const)) = self.globals.get(name) {
+                        if *is_const {
+                            panic!("Cannot set a global constant `{name}`");
+                        } else {
+                            let name = name.clone();
+                            let value = self.pop();
+                            self.globals.insert(name, (value, false));
+                        }
                     }
                 }
 
@@ -248,21 +324,27 @@ impl VM {
                     }
                 }
 
-				Inst::CALL => {
-					let func = self.pop();
-					if let Value::Function(f) = func {
-						self.function_stack.push(self.pos);
-						self.pos = f.entry;
-						continue;
-					} else {
-						panic!("Tried calling non-function")
-					}
-				}
-				Inst::RETURN => {
-					if let Some(last) = self.function_stack.last() {
-						self.pos = *last;
-					}
-				}
+                Inst::CALL => {
+                    let func = self.pop();
+                    if let Value::Function(f) = func {
+                        self.call_stack.push(self.pos);
+                        self.pos = f.entry;
+                        continue;
+                    } else {
+                        panic!("Tried calling non-function")
+                    }
+                }
+                Inst::CALLBUILTIN(name, arg_count) => match &***name {
+                    "print" => builtin_print(self, *arg_count, false),
+                    "println" => builtin_print(self, *arg_count, true),
+                    _ => panic!("Unknown built-in: {name}"),
+                },
+                Inst::RETURN => {
+                    if let Some(last) = self.call_stack.last() {
+                        self.pos = *last;
+                        self.call_stack.pop();
+                    }
+                }
 
                 _ => panic!("Unimplemented instruction: {current:?}"),
             }

@@ -1,16 +1,19 @@
+use std::rc::Rc;
+
 use crate::language::token::TokenKind;
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Node {
-    // LITERALS
-    NULL,
-    Variable(String),
+	// Expressions vs Statements
+	ExprStmt(Box<Node>),
 
-    IntLiteral(i32),
-    FloatLiteral(f32),
+    // LITERALS
+    NIL,
+    Variable(Rc<String>),
+
+    NumberLiteral(f32),
     StringLiteral(String),
-    CharLiteral(String),
     BooleanLiteral(bool),
 
     // COLLECTIONS
@@ -28,11 +31,16 @@ pub enum Node {
     },
 
     // STATEMENTS
-    // use a Box<Node> because Node by itself makes it infinitely big
     LetStatement {
-        name: String,
+        name: Rc<String>,
         value: Option<Box<Node>>,
+		is_const: bool,
     },
+
+	SetVariable {
+		target: Box<Node>,
+		value: Box<Node>,
+	},
 
     Block {
         body: Vec<Node>,
@@ -40,9 +48,9 @@ pub enum Node {
 
     // Arguments are in the tuple -> (name: String, type: Option<String>)
     FunctionDefinition {
-        name: String,
-        return_type: Option<String>,
-        args: Vec<(String, Option<String>)>,
+        name: Rc<String>,
+        return_type: Option<Rc<String>>,
+        args: Vec<(Rc<String>, Option<Rc<String>>, Option<Node>)>,
         block: Box<Node>,
     },
 
@@ -67,7 +75,7 @@ pub enum Node {
         step: Option<Box<Node>>,
     },
     IterableForLoop {
-        var_name: String,
+        var_name: Rc<String>,
         iterable: Box<Node>,
     },
 
@@ -82,18 +90,18 @@ pub enum Node {
     // Class stuff
     ClassDef {
         name: String,
-		interfaces: Vec<String>,
+		interfaces: Vec<Rc<String>>,
 		let_statements: Vec<Node>,
         functions: Vec<Node>,
     },
 
 	StructDef {
 		name: String,
-		types: Vec<(String, String)> // (key, type)
+		types: Vec<(Rc<String>, Rc<String>)> // (key, type)
 	},
 
 	InterfaceDef {
-        name: String,
+        name: Rc<String>,
 		let_statements: Vec<Node>,
         functions: Vec<Node>,
 	}

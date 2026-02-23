@@ -22,21 +22,22 @@ impl Token {
     }
 }
 
+#[allow(nonstandard_style)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     NEWLINE,
     Identifier,
 
     // LITERALS
-	NULL,
+	NIL,
     IntLiteral(i32),
-    FloatLiteral(f32),
+    NumberLiteral(f32),
     StringLiteral(String),
     BooleanLiteral(bool),
-    CharLiteral(char),
 
     // Keywords
     RETURN,
+    CONST,
     LET,
     FN,
     FOR,
@@ -66,8 +67,10 @@ pub enum TokenKind {
     HASH,
     AT,
     BANG,
-    EQUAL, // ==
-    GR, // >
+    EQUAL, // =
+    EQ, // ==
+    NEQ, // !=
+    GT, // >
     LT, // <
     GE, // >=
     LE, // <=

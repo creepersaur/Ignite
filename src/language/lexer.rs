@@ -6,8 +6,8 @@ use crate::language::token::{
     TokenRange,
 };
 
-const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?\n";
-const DOUBLE: [&str; 5] = ["->", "||", "&&", "<=", ">="];
+const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?=\n";
+const DOUBLE: [&str; 7] = ["->", "||", "&&", "<=", ">=", "==", "!="];
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -142,10 +142,11 @@ impl Lexer {
 
         let kind = match text {
             "\n" => NEWLINE,
-			"null" => NULL,
+			"nil" => NIL,
 
             // Keywords
             "let" => LET,
+            "const" => CONST,
             "fn" => FN,
             "return" => RETURN,
             "for" => FOR,
@@ -176,11 +177,12 @@ impl Lexer {
             "@" => AT,
             "!" => BANG,
             "=" => EQUAL,
-            ">" => GR,
+            "==" => EQ,
+            ">" => GT,
             "<" => LT,
             ">=" => GE,
             "<=" => LE,
-            "!=" => NE,
+            "!=" => NEQ,
             "or" => OR,
             "||" => OR,
             "and" => AND,
@@ -202,16 +204,16 @@ impl Lexer {
     }
 
     pub fn identify_other(text: &str) -> TokenKind {
-        if let Ok(x) = text.parse::<i32>() {
-            return IntLiteral(x);
-        } else if let Ok(x) = text.parse::<f32>() {
-            return FloatLiteral(x);
+        if let Ok(x) = text.parse::<f32>() {
+            return NumberLiteral(x);
         } else if let Ok(x) = text.parse::<bool>() {
             return BooleanLiteral(x);
         } else if text.starts_with('"') && text.ends_with('"') {
-            return StringLiteral(text.to_string());
+            return StringLiteral(text[1..text.len() - 1].to_string());
         } else if text.starts_with('\'') && text.ends_with('\'') {
-            return CharLiteral('x');
+            return StringLiteral(text[1..text.len() - 1].to_string());
+        } else if text.starts_with('`') && text.ends_with('`') {
+            return StringLiteral(text[1..text.len() - 1].to_string());
         }
 
         Identifier

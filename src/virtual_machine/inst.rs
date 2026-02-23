@@ -1,5 +1,5 @@
+use bincode::{Decode, Encode};
 use std::rc::Rc;
-use bincode::{Encode, Decode};
 
 use crate::virtual_machine::value::Value;
 
@@ -7,8 +7,10 @@ use crate::virtual_machine::value::Value;
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum Inst {
     EXIT,        // ✅
-	NOP,         // ✅
+    NOP,         // ✅
     PRINT,       // ✅
+    DEFAULT,     // ✅
+    DEFAULTNIL,  // ✅
     PUSH(Value), // ✅
     POP,         // ✅
 
@@ -17,25 +19,34 @@ pub enum Inst {
     MUL, // ✅
     DIV, // ✅
 
-	GT,  // ✅
-	LT,  // ✅
-	GE,  // ✅
-	LE,  // ✅
-	EQ,  // ✅
-	NEQ, // ✅
+    GT,  // ✅
+    LT,  // ✅
+    GE,  // ✅
+    LE,  // ✅
+    EQ,  // ✅
+    NEQ, // ✅
+    AND, // ✅
+    OR,  // ✅
+    NOT, // ✅
 
     LOADCONST(usize),        // ✅
     LOADGLOBAL(Rc<String>),  // ✅
     STOREGLOBAL(Rc<String>), // ✅
-    
-	PUSHSCOPE,
-	POPSCOPE,
-	LOADLOCAL(Rc<String>),
-    STORELOCAL(Rc<String>),
+	DEFCONST(Rc<String>),    // ✅
+	SETVAR(Rc<String>),      // ✅
+
+    PUSHSCOPE,              // ✅
+    POPSCOPE,               // ✅
+    LOADLOCAL(Rc<String>),  // ✅
+    STORELOCAL(Rc<String>), // ✅
+
+    // Load from local or global
+    LOAD(Rc<String>), // ✅
 
     JUMP(usize),        // ✅
     JUMPIFFALSE(usize), // ✅
 
     CALL,
+    CALLBUILTIN(Rc<String>, usize),
     RETURN,
 }

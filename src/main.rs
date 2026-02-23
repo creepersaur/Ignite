@@ -1,14 +1,24 @@
+use crate::{
+    compiler::compiler::Compiler,
+    language::{lexer::Lexer, parser::Parser},
+    virtual_machine::vm::VM,
+};
 #[allow(unused)]
-use std::{fs, error::Error, rc::Rc};
-use crate::language::{lexer::Lexer, parser::Parser};
+use std::{error::Error, fs, rc::Rc};
 
+mod compiler;
 mod language;
+mod macros;
 mod virtual_machine;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let text = fs::read_to_string("sigma.ignite")?;
     let mut lex = Lexer::new(&text);
     let tokens = lex.get_tokens();
+
+	/////////////////////
+	// NODES
+	/////////////////////
 
     let mut parser = Parser::new(text, tokens);
     let mut nodes = vec![];
@@ -17,7 +27,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         nodes.push(parser.parse()?);
     }
 
-	println!("{nodes:#?}");
+    // println!("Generated Nodes:");
+    // println!("---------------------------");
+    // println!("{nodes:#?}");
+
+	/////////////////////
+	// COMPILER
+	/////////////////////
+
+    let mut compiler = Compiler::new();
+    for i in nodes.iter() {
+		let inst_vec = compiler.compile_node(i);
+        compiler.instructions.extend(inst_vec);
+    }
+
+    let mut vm = VM::new();
+    vm.constants = compiler.constants;
+    vm.instructions = compiler.instructions;
+
+    // println!("\nCompiled instructions:");
+    // println!("---------------------------");
+    // vm.print_instructions();
+
+    // println!("\nRunning:");
+    // println!("---------------------------");
+	vm.run();
 
     Ok(())
 }

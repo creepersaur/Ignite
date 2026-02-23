@@ -1,8 +1,11 @@
 #![allow(unused)]
 
-use crate::language::{
-    nodes::Node,
-    token::{Token, TokenKind},
+use crate::{
+    language::{
+        nodes::Node,
+        token::{Token, TokenKind},
+    },
+    rc,
 };
 
 type TokenResult = Result<Token, String>;
@@ -69,7 +72,8 @@ impl Parser {
         self.skip_new_lines();
 
         match self.current()?.kind {
-            TokenKind::LET => self.parse_let(),
+            TokenKind::LET => self.parse_let(false),
+            TokenKind::CONST => self.parse_let(true),
             TokenKind::LBRACE => self.parse_block(),
             TokenKind::RETURN => self.parse_return(),
             TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
@@ -83,14 +87,14 @@ impl Parser {
             _ => {
                 let expr = self.parse_expression()?;
 
-                // FUNCTION CALL
+                // SETTING VARIABLE
                 if let Ok(next) = self.current()
-                    && next.kind == TokenKind::LPAREN
+                    && next.kind == TokenKind::EQUAL
                 {
-                    return self.parse_function_call(expr);
+                    return self.parse_set_variable(expr);
                 }
 
-                Ok(expr)
+                Ok(Node::ExprStmt(Box::new(expr)))
             }
         }
     }
@@ -98,6 +102,15 @@ impl Parser {
 
 // EXPRESSIONS
 impl Parser {
+    fn parse_set_variable(&mut self, expr: Node) -> NodeResult {
+        self.advance()?;
+
+        Ok(Node::SetVariable {
+            target: Box::new(expr),
+            value: Box::new(self.parse_expression()?),
+        })
+    }
+
     fn parse_add_sub(&mut self) -> NodeResult {
         let mut left = self.parse_mul_div()?;
 
@@ -149,7 +162,10 @@ impl Parser {
         self.skip_new_lines();
 
         if let Ok(next) = self.current()
-            && matches!(next.kind, TokenKind::PLUS | TokenKind::MINUS)
+            && matches!(
+                next.kind,
+                TokenKind::PLUS | TokenKind::MINUS | TokenKind::BANG
+            )
         {
             let op = self.advance()?.kind;
 
@@ -189,20 +205,17 @@ impl Parser {
         let current = self.current()?;
 
         let node = match current.kind {
-            TokenKind::NULL => Ok(Node::NULL),
-            TokenKind::IntLiteral(x) => Ok(Node::IntLiteral(x)),
-            TokenKind::FloatLiteral(x) => Ok(Node::FloatLiteral(x)),
+            TokenKind::NIL => Ok(Node::NIL),
+            TokenKind::NumberLiteral(x) => Ok(Node::NumberLiteral(x)),
             TokenKind::BooleanLiteral(x) => Ok(Node::BooleanLiteral(x)),
             TokenKind::StringLiteral(_) => Ok(Node::StringLiteral({
                 let text = current.get_text(&self.source);
                 text[1..text.len() - 1].to_string()
             })),
-            TokenKind::CharLiteral(_) => Ok(Node::CharLiteral({
-                let text = current.get_text(&self.source);
-                text[1..text.len() - 1].into()
-            })),
 
-            TokenKind::Identifier => Ok(Node::Variable(current.get_text(&self.source).to_string())),
+            TokenKind::Identifier => Ok(Node::Variable(rc!(current
+                .get_text(&self.source)
+                .to_string()))),
 
             // COLLECTIONS
             TokenKind::LPAREN => {
@@ -223,11 +236,11 @@ impl Parser {
             other => Err(format!(
                 "Got unexpected token `{other:?}` while parsing primary."
             )),
-        };
+        }?;
 
         self.advance()?;
 
-        node
+        self.parse_postfix(node)
     }
 
     fn skip_new_lines(&mut self) {
@@ -277,12 +290,27 @@ impl Parser {
     fn parse_expression(&mut self) -> NodeResult {
         self.skip_new_lines();
 
-        let expr = self.parse_logical();
+        let expr = self.parse_logical()?;
 
         self.skip_new_lines();
 
-        expr
+		Ok(expr)
     }
+
+	fn parse_postfix(&mut self, mut expr: Node) -> NodeResult {
+		loop {
+			if let Ok(x) = self.current() {
+				if x.kind == TokenKind::LPAREN {
+					expr = self.parse_function_call(expr)?;
+					continue;
+				}
+			}
+
+			break;
+		}
+
+		return Ok(expr)
+	}
 
     fn parse_logical(&mut self) -> NodeResult {
         self.parse_or()
@@ -334,7 +362,7 @@ impl Parser {
         let mut left = self.parse_comparison()?;
 
         while let Ok(next) = self.current() {
-            if !matches!(next.kind, TokenKind::EQUAL | TokenKind::NE) {
+            if !matches!(next.kind, TokenKind::EQ | TokenKind::NEQ) {
                 break;
             }
 
@@ -357,7 +385,7 @@ impl Parser {
         while let Ok(next) = self.current() {
             if !matches!(
                 next.kind,
-                TokenKind::LT | TokenKind::LE | TokenKind::GR | TokenKind::GE
+                TokenKind::LT | TokenKind::LE | TokenKind::GT | TokenKind::GE
             ) {
                 break;
             }
@@ -421,7 +449,7 @@ impl Parser {
 
 // STATEMENTS
 impl Parser {
-    fn parse_let(&mut self) -> NodeResult {
+    fn parse_let(&mut self, is_const: bool) -> NodeResult {
         self.advance()?;
 
         let name = self
@@ -440,7 +468,11 @@ impl Parser {
             None
         };
 
-        Ok(Node::LetStatement { name, value })
+        Ok(Node::LetStatement {
+            name: rc!(name),
+            value,
+            is_const,
+        })
     }
 
     fn parse_block(&mut self) -> NodeResult {
@@ -507,16 +539,21 @@ impl Parser {
                 && next.kind == TokenKind::COLON
             {
                 self.expect_and_consume(TokenKind::COLON)?;
-                Some(
-                    self.expect_and_consume(TokenKind::Identifier)?
-                        .get_text(&self.source)
-                        .to_string(),
-                )
+                Some(rc!(self
+                    .expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&self.source)
+                    .to_string()))
             } else {
                 None
             };
 
-            args.push((arg_name, arg_type));
+			let mut default_value = None;
+			if let Ok(x) = self.current() && x.kind == TokenKind::EQUAL {
+				self.advance();
+				default_value = Some(self.parse_expression()?);
+			}
+
+            args.push((rc!(arg_name), arg_type, default_value));
 
             self.skip_new_lines();
             if let Ok(next) = self.current()
@@ -534,17 +571,16 @@ impl Parser {
             && next.kind == TokenKind::ARROW
         {
             self.advance()?;
-            Some(
-                self.expect_and_consume(TokenKind::Identifier)?
-                    .get_text(&self.source)
-                    .to_string(),
-            )
+            Some(rc!(self
+                .expect_and_consume(TokenKind::Identifier)?
+                .get_text(&self.source)
+                .to_string()))
         } else {
             None
         };
 
         Ok(Node::FunctionDefinition {
-            name,
+            name: rc!(name),
             args,
             return_type,
             block: Box::new(self.parse_block()?),
@@ -658,7 +694,7 @@ impl Parser {
             let iterable = self.parse_expression()?;
 
             return Ok(Node::IterableForLoop {
-                var_name,
+                var_name: rc!(var_name),
                 iterable: Box::new(iterable),
             });
         } else {
@@ -682,11 +718,10 @@ impl Parser {
             && next.kind == TokenKind::COLON
         {
             self.expect_and_consume(TokenKind::COLON)?;
-            interfaces.push(
-                self.expect_and_consume(TokenKind::Identifier)?
-                    .get_text(&self.source)
-                    .to_string(),
-            );
+            interfaces.push(rc!(self
+                .expect_and_consume(TokenKind::Identifier)?
+                .get_text(&self.source)
+                .to_string()));
 
             loop {
                 self.skip_new_lines();
@@ -703,11 +738,10 @@ impl Parser {
 
                 self.expect_and_consume(TokenKind::COMMA)?;
 
-                interfaces.push(
-                    self.expect_and_consume(TokenKind::Identifier)?
-                        .get_text(&self.source)
-                        .to_string(),
-                );
+                interfaces.push(rc!(self
+                    .expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&self.source)
+                    .to_string()));
             }
         }
 
@@ -730,7 +764,7 @@ impl Parser {
             if let Ok(next) = self.current() {
                 match next.kind {
                     TokenKind::FN => functions.push(self.parse_function_def()?),
-                    TokenKind::LET => let_statements.push(self.parse_let()?),
+                    TokenKind::LET => let_statements.push(self.parse_let(false)?),
                     TokenKind::SEMI => {
                         self.advance()?;
                     }
