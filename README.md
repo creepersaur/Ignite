@@ -1,10 +1,23 @@
-# INSTALL GUIDE
+# Ignite
 
-1. Install LLVM  
-   - **Windows:** https://github.com/vovkos/llvm-package-windows/releases/tag/llvm-18.1.8  
-   - **macOS:** `brew install llvm@18`
-2. Add it to your PATH \n
-3. Run `cargo build` or `cargo check` in the project root to check for any errors
-4. If it thorws an error on Windows:
-      - Run `rustup target add x86_64-pc-windows-msvc`, this installs MSVC toolchain 
-      - Then run `cargo build --target x86_64-pc-windows-msvc`
+Bytecode compiled dynamically typed programming language inspired by Rust, C#, python, etc.
+(It's a rewrite of [Cranberry](https://creepersaur.github.io/CranberryDocs) in Rust and compiled.)
+
+```rs
+let x = 10
+
+println($"The value of x is {x}")
+```
+
+```rs
+fn hello() {
+	for i in 0..10 {
+		println(i)
+	}
+}
+```
+
+```rs
+let input = Std::IO::read_line("say something: ")
+println("You said:", input)
+```

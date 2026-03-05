@@ -9,16 +9,18 @@ use std::{error::Error, fs, rc::Rc};
 mod compiler;
 mod language;
 mod macros;
+mod misc;
 mod virtual_machine;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let text = fs::read_to_string("sigma.ignite")?;
     let mut lex = Lexer::new(&text);
     let tokens = lex.get_tokens();
+    // println!("{:#?}", tokens);
 
-	/////////////////////
-	// NODES
-	/////////////////////
+    /////////////////////
+    // NODES
+    /////////////////////
 
     let mut parser = Parser::new(text, tokens);
     let mut nodes = vec![];
@@ -31,14 +33,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // println!("---------------------------");
     // println!("{nodes:#?}");
 
-	/////////////////////
-	// COMPILER
-	/////////////////////
+    /////////////////////
+    // COMPILER
+    /////////////////////
 
     let mut compiler = Compiler::new();
     for i in nodes.iter() {
-		let inst_vec = compiler.compile_node(i);
-        compiler.instructions.extend(inst_vec);
+        compiler.compile_node(i);
     }
 
     let mut vm = VM::new();
@@ -49,9 +50,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // println!("---------------------------");
     // vm.print_instructions();
 
-    // println!("\nRunning:");
-    // println!("---------------------------");
-	vm.run();
+    println!("\nRunning:");
+    println!("---------------------------");
+    vm.run(false, false);
 
     Ok(())
 }

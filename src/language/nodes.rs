@@ -19,6 +19,14 @@ pub enum Node {
     // COLLECTIONS
     ListNode(Vec<Node>),
 
+	// Range
+	RangeNode {
+		start: Box<Node>,
+		end: Box<Node>,
+		step: Option<Box<Node>>,
+		inclusive: bool
+	},
+
     // OPERATORS
     BinOp {
         left: Box<Node>,
@@ -30,10 +38,16 @@ pub enum Node {
         right: Box<Node>,
     },
 
+	// MEMBER ACCESS
+	MemberAccess {
+		expr: Box<Node>,
+		member: Box<Node>,
+	},
+
     // STATEMENTS
     LetStatement {
-        name: Rc<String>,
-        value: Option<Box<Node>>,
+        names: Vec<Rc<String>>,
+        values: Vec<Option<Box<Node>>>,
 		is_const: bool,
     },
 
@@ -45,10 +59,13 @@ pub enum Node {
     Block {
         body: Vec<Node>,
     },
+    SingleLineBlock {
+        body: Box<Node>,
+    },
 
     // Arguments are in the tuple -> (name: String, type: Option<String>)
     FunctionDefinition {
-        name: Rc<String>,
+        name: Option<Rc<String>>,
         return_type: Option<Rc<String>>,
         args: Vec<(Rc<String>, Option<Rc<String>>, Option<Node>)>,
         block: Box<Node>,
@@ -60,23 +77,22 @@ pub enum Node {
     },
 
     ReturnStatement(Option<Box<Node>>),
-    BreakStatement,
+    BreakStatement(Option<Box<Node>>),
+    OutStatement(Option<Box<Node>>),
     ContinueStatement,
 
     // Loops
+    Loop {
+        block: Box<Node>,
+    },
     WhileLoop {
         condition: Box<Node>,
         block: Box<Node>,
     },
-    RangedForLoop {
-        var_name: String,
-        start: Box<Node>,
-        end: Box<Node>,
-        step: Option<Box<Node>>,
-    },
-    IterableForLoop {
+    ForLoop {
         var_name: Rc<String>,
-        iterable: Box<Node>,
+        expr: Box<Node>,
+        block: Box<Node>,
     },
 
     // Logical Operations

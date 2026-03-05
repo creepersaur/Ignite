@@ -36,14 +36,17 @@ pub enum TokenKind {
     BooleanLiteral(bool),
 
     // Keywords
-    RETURN,
-    CONST,
     LET,
+    CONST,
     FN,
+    RETURN,
+    LOOP,
+    WHILE,
     FOR,
+	IN,
     BREAK,
     CONTINUE,
-    WHILE,
+    OUT,
     IF,
     ELSE,
 	CLASS,
@@ -78,12 +81,15 @@ pub enum TokenKind {
 	OR, // or, ||
 	AND, // and, &&
     COLON,
+    DOUBLECOLON,
     SEMI,
     QUESTION,
     TILDA,
     BACKTICK,
     PIPE,
     DOT,
+    DOUBLEDOT,
     COMMA,
     ARROW,
+    FATARROW,
 }

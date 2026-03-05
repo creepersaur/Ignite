@@ -3,21 +3,28 @@ use std::rc::Rc;
 
 use crate::virtual_machine::value::Value;
 
-#[allow(unused)]
-#[derive(Encode, Decode, Debug, Clone)]
+#[allow(unused, non_camel_case_types)]
+#[derive(Encode, Decode, Debug, Clone, PartialEq)]
 pub enum Inst {
     EXIT,        // ✅
     NOP,         // ✅
     PRINT,       // ✅
     DEFAULT,     // ✅
-    DEFAULTNIL,  // ✅
+    DEFAULT_NIL, // ✅
     PUSH(Value), // ✅
+    DUP,         // ✅
+    LIST(usize), // ✅
+    RANGE,       // ✅
     POP,         // ✅
+
+    PATCH_ME(String), // ✅
 
     ADD, // ✅
     SUB, // ✅
     MUL, // ✅
     DIV, // ✅
+    NEG, // ✅
+    POS, // ✅
 
     GT,  // ✅
     LT,  // ✅
@@ -29,24 +36,31 @@ pub enum Inst {
     OR,  // ✅
     NOT, // ✅
 
-    LOADCONST(usize),        // ✅
-    LOADGLOBAL(Rc<String>),  // ✅
-    STOREGLOBAL(Rc<String>), // ✅
-	DEFCONST(Rc<String>),    // ✅
-	SETVAR(Rc<String>),      // ✅
+    LOAD_CONST(usize),        // ✅
+    LOAD_GLOBAL(Rc<String>),  // ✅
+    STORE_GLOBAL(Rc<String>), // ✅
+    SET_VAR(Rc<String>),      // ✅
 
-    PUSHSCOPE,              // ✅
-    POPSCOPE,               // ✅
-    LOADLOCAL(Rc<String>),  // ✅
-    STORELOCAL(Rc<String>), // ✅
+    PUSH_SCOPE,                    // ✅
+    POP_SCOPE,                     // ✅
+    LOAD_LOCAL(Rc<String>),        // ✅
+    STORE_LOCAL(Rc<String>),       // ✅
+    STORE_LOCAL_CONST(Rc<String>), // ✅
 
     // Load from local or global
     LOAD(Rc<String>), // ✅
 
-    JUMP(usize),        // ✅
-    JUMPIFFALSE(usize), // ✅
+    JUMP(usize),          // ✅
+    JUMP_IF_FALSE(usize), // ✅
 
-    CALL,
-    CALLBUILTIN(Rc<String>, usize),
-    RETURN,
+    // Get property (member access)
+    GET_PROP, // ✅
+
+    CALL,                            // ✅
+    CALL_BUILTIN(Rc<String>, usize), // ✅
+    RETURN,                          // ✅
+
+    // Get iterator (for loop)
+    GET_ITER,        // ✅
+    FOR_ITER(usize), // ✅
 }

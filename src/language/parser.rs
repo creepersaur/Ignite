@@ -74,15 +74,11 @@ impl Parser {
         match self.current()?.kind {
             TokenKind::LET => self.parse_let(false),
             TokenKind::CONST => self.parse_let(true),
-            TokenKind::LBRACE => self.parse_block(),
             TokenKind::RETURN => self.parse_return(),
-            TokenKind::BREAK => self.simple_parse_keyword(Node::BreakStatement),
+            TokenKind::OUT => self.parse_out(),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
-            TokenKind::WHILE => self.parse_while(),
-            TokenKind::FOR => self.parse_for(),
-            TokenKind::IF => self.parse_if(),
-            TokenKind::FN => self.parse_function_def(),
             TokenKind::CLASS => self.parse_class_def(),
+            TokenKind::FN => self.parse_function_def(false),
 
             _ => {
                 let expr = self.parse_expression()?;
@@ -102,6 +98,11 @@ impl Parser {
 
 // EXPRESSIONS
 impl Parser {
+    fn parse_explicit_block(&mut self) -> NodeResult {
+        self.advance();
+        self.parse_block()
+    }
+
     fn parse_set_variable(&mut self, expr: Node) -> NodeResult {
         self.advance()?;
 
@@ -202,6 +203,7 @@ impl Parser {
 
     fn parse_primary(&mut self) -> NodeResult {
         self.skip_new_lines();
+        let start_pos = self.pos;
         let current = self.current()?;
 
         let node = match current.kind {
@@ -216,6 +218,8 @@ impl Parser {
             TokenKind::Identifier => Ok(Node::Variable(rc!(current
                 .get_text(&self.source)
                 .to_string()))),
+
+            TokenKind::AT => self.parse_explicit_block(),
 
             // COLLECTIONS
             TokenKind::LPAREN => {
@@ -233,12 +237,21 @@ impl Parser {
             }
             TokenKind::LBRACK => self.parse_list(),
 
+            TokenKind::FN => self.parse_function_def(true),
+            TokenKind::LOOP => self.parse_loop(),
+            TokenKind::WHILE => self.parse_while(),
+            TokenKind::FOR => self.parse_for(),
+            TokenKind::IF => self.parse_if(),
+            TokenKind::BREAK => self.parse_break(),
+
             other => Err(format!(
                 "Got unexpected token `{other:?}` while parsing primary."
             )),
         }?;
 
-        self.advance()?;
+        if self.pos == start_pos {
+            self.advance()?;
+        }
 
         self.parse_postfix(node)
     }
@@ -282,7 +295,7 @@ impl Parser {
             }
         }
 
-        // DONT PARSE THE `RBRACK` BECAUSE WE ALREADY ADVANCE LATER
+        self.advance()?;
 
         Ok(Node::ListNode(values))
     }
@@ -294,23 +307,39 @@ impl Parser {
 
         self.skip_new_lines();
 
-		Ok(expr)
+        Ok(expr)
     }
 
-	fn parse_postfix(&mut self, mut expr: Node) -> NodeResult {
-		loop {
-			if let Ok(x) = self.current() {
-				if x.kind == TokenKind::LPAREN {
-					expr = self.parse_function_call(expr)?;
-					continue;
-				}
-			}
+    fn parse_postfix(&mut self, mut expr: Node) -> NodeResult {
+        loop {
+            if let Ok(x) = self.current() {
+                match x.kind {
+                    TokenKind::LPAREN => {
+                        expr = self.parse_function_call(expr)?;
+                        continue;
+                    }
+                    TokenKind::DOT => {
+                        expr = self.parse_member_access(expr)?;
+                        continue;
+                    }
+                    TokenKind::DOUBLECOLON => {
+                        expr = self.parse_member_access(expr)?;
+                        continue;
+                    }
+                    TokenKind::LBRACK => {
+                        expr = self.parse_member_access(expr)?;
+                        continue;
+                    }
 
-			break;
-		}
+                    _ => {}
+                }
+            }
 
-		return Ok(expr)
-	}
+            break;
+        }
+
+        return Ok(expr);
+    }
 
     fn parse_logical(&mut self) -> NodeResult {
         self.parse_or()
@@ -380,7 +409,7 @@ impl Parser {
     }
 
     fn parse_comparison(&mut self) -> NodeResult {
-        let mut left = self.parse_add_sub()?;
+        let mut left = self.parse_range()?;
 
         while let Ok(next) = self.current() {
             if !matches!(
@@ -391,7 +420,7 @@ impl Parser {
             }
 
             let op = self.advance()?.kind;
-            let right = self.parse_add_sub()?;
+            let right = self.parse_range()?;
 
             left = Node::BinOp {
                 left: Box::new(left),
@@ -445,6 +474,31 @@ impl Parser {
             args,
         })
     }
+
+    fn parse_member_access(&mut self, expr: Node) -> NodeResult {
+        let x = self.advance()?;
+
+        if x.kind == TokenKind::DOT || x.kind == TokenKind::DOUBLECOLON {
+            let member = self.expect_and_consume(TokenKind::Identifier)?;
+
+            return Ok(Node::MemberAccess {
+                expr: Box::new(expr),
+                member: Box::new(Node::StringLiteral(
+                    member.get_text(&self.source).to_string(),
+                )),
+            });
+        } else if x.kind == TokenKind::LBRACK {
+            let member = self.parse_expression()?;
+            self.expect_and_consume(TokenKind::RBRACK)?;
+
+            return Ok(Node::MemberAccess {
+                expr: Box::new(expr),
+                member: Box::new(member),
+            });
+        }
+
+        panic!("Unknown member access parse token")
+    }
 }
 
 // STATEMENTS
@@ -452,30 +506,73 @@ impl Parser {
     fn parse_let(&mut self, is_const: bool) -> NodeResult {
         self.advance()?;
 
-        let name = self
-            .expect_and_consume(TokenKind::Identifier)?
-            .get_text(&self.source)
-            .to_string();
+        let mut names = vec![];
 
-        self.skip_new_lines();
+        loop {
+            self.skip_new_lines();
 
-        let value = if let Ok(next) = self.current()
-            && next.kind == TokenKind::EQUAL
-        {
-            self.expect_and_consume(TokenKind::EQUAL)?;
-            Some(Box::new(self.parse_expression()?))
-        } else {
-            None
-        };
+            if let Ok(x) = self.current()
+                && x.kind == TokenKind::EQUAL
+            {
+                break;
+            }
+
+            names.push(rc!(self
+                .expect_and_consume(TokenKind::Identifier)?
+                .get_text(&self.source)
+                .to_string()));
+
+            self.skip_new_lines();
+
+            if let Ok(x) = self.current()
+                && x.kind == TokenKind::COMMA
+            {
+                self.advance();
+            } else {
+                self.skip_new_lines();
+                break;
+            }
+        }
+
+        self.expect_and_consume(TokenKind::EQUAL)?;
+
+        let mut values = vec![];
+
+        for i in names.iter() {
+            values.push(Some(Box::new(self.parse_expression()?)));
+
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::COMMA
+            {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        if values.len() < names.len() {
+            for i in 0..(names.len() - values.len()) {
+                values.push(None);
+            }
+        }
 
         Ok(Node::LetStatement {
-            name: rc!(name),
-            value,
+            names,
+            values,
             is_const,
         })
     }
 
     fn parse_block(&mut self) -> NodeResult {
+        if let Ok(x) = self.current()
+            && x.kind == TokenKind::FATARROW
+        {
+            self.advance();
+            return Ok(Node::SingleLineBlock {
+                body: Box::new(self.parse_expression()?),
+            });
+        }
+
         self.expect_and_consume(TokenKind::LBRACE)?;
 
         let mut body = vec![];
@@ -503,14 +600,18 @@ impl Parser {
         Ok(Node::Block { body })
     }
 
-    fn parse_function_def(&mut self) -> NodeResult {
+    fn parse_function_def(&mut self, is_lambda: bool) -> NodeResult {
         self.advance()?;
         self.skip_new_lines();
 
-        let name = self
-            .expect_and_consume(TokenKind::Identifier)?
-            .get_text(&self.source)
-            .to_string();
+        let name = if is_lambda {
+            None
+        } else {
+            Some(rc!(self
+                .expect_and_consume(TokenKind::Identifier)?
+                .get_text(&self.source)
+                .to_string()))
+        };
 
         self.skip_new_lines();
         self.expect_and_consume(TokenKind::LPAREN)?;
@@ -547,11 +648,13 @@ impl Parser {
                 None
             };
 
-			let mut default_value = None;
-			if let Ok(x) = self.current() && x.kind == TokenKind::EQUAL {
-				self.advance();
-				default_value = Some(self.parse_expression()?);
-			}
+            let mut default_value = None;
+            if let Ok(x) = self.current()
+                && x.kind == TokenKind::EQUAL
+            {
+                self.advance();
+                default_value = Some(self.parse_expression()?);
+            }
 
             args.push((rc!(arg_name), arg_type, default_value));
 
@@ -580,7 +683,7 @@ impl Parser {
         };
 
         Ok(Node::FunctionDefinition {
-            name: rc!(name),
+            name,
             args,
             return_type,
             block: Box::new(self.parse_block()?),
@@ -598,6 +701,30 @@ impl Parser {
             ))))
         } else {
             Ok(Node::ReturnStatement(None))
+        }
+    }
+    fn parse_break(&mut self) -> NodeResult {
+        self.advance()?;
+
+        if let Ok(next) = self.current()
+            && !matches!(next.kind, TokenKind::NEWLINE | TokenKind::SEMI)
+        {
+            Ok(Node::BreakStatement(Some(Box::new(
+                self.parse_expression()?,
+            ))))
+        } else {
+            Ok(Node::BreakStatement(None))
+        }
+    }
+    fn parse_out(&mut self) -> NodeResult {
+        self.advance()?;
+
+        if let Ok(next) = self.current()
+            && !matches!(next.kind, TokenKind::NEWLINE | TokenKind::SEMI)
+        {
+            Ok(Node::OutStatement(Some(Box::new(self.parse_expression()?))))
+        } else {
+            Ok(Node::OutStatement(None))
         }
     }
 
@@ -646,6 +773,14 @@ impl Parser {
         Ok(node)
     }
 
+    fn parse_loop(&mut self) -> NodeResult {
+        self.advance()?;
+
+        Ok(Node::Loop {
+            block: Box::new(self.parse_block()?),
+        })
+    }
+
     fn parse_while(&mut self) -> NodeResult {
         self.advance()?;
 
@@ -658,48 +793,21 @@ impl Parser {
     fn parse_for(&mut self) -> NodeResult {
         self.advance()?;
 
-        /*
-        for x = 1, 10 {
-
-        }
-         */
-
-        let var_name = self
+        let var_name = rc!(self
             .expect_and_consume(TokenKind::Identifier)?
             .get_text(&self.source)
-            .to_string();
+            .to_string());
 
-        let for_handle_type = self.advance()?;
+        self.expect_and_consume(TokenKind::IN)?;
 
-        if for_handle_type.kind == TokenKind::EQUAL {
-            let start = self.parse_expression()?;
-            self.expect_and_consume(TokenKind::COMMA)?;
-            let end = self.parse_expression()?;
+        let expr = Box::new(self.parse_expression()?);
+        let block = Box::new(self.parse_block()?);
 
-            return Ok(Node::RangedForLoop {
-                var_name,
-                start: Box::new(start),
-                end: Box::new(end),
-
-                // optional step parameter
-                step: if let Ok(next) = self.current()
-                    && next.kind == TokenKind::COMMA
-                {
-                    Some(Box::new(self.parse_expression()?))
-                } else {
-                    None
-                },
-            });
-        } else if for_handle_type.kind == TokenKind::COLON {
-            let iterable = self.parse_expression()?;
-
-            return Ok(Node::IterableForLoop {
-                var_name: rc!(var_name),
-                iterable: Box::new(iterable),
-            });
-        } else {
-            Err("Expected equals (=) or colon (:) after variable name.".to_string())
-        }
+        Ok(Node::ForLoop {
+            var_name,
+            expr,
+            block,
+        })
     }
 
     fn parse_class_def(&mut self) -> NodeResult {
@@ -763,7 +871,7 @@ impl Parser {
 
             if let Ok(next) = self.current() {
                 match next.kind {
-                    TokenKind::FN => functions.push(self.parse_function_def()?),
+                    TokenKind::FN => functions.push(self.parse_function_def(false)?),
                     TokenKind::LET => let_statements.push(self.parse_let(false)?),
                     TokenKind::SEMI => {
                         self.advance()?;
@@ -786,5 +894,49 @@ impl Parser {
             let_statements,
             functions,
         })
+    }
+
+    fn parse_range(&mut self) -> NodeResult {
+        let left = self.parse_add_sub()?;
+
+        if let Ok(x) = self.current()
+            && x.kind == TokenKind::DOUBLEDOT
+        {
+            self.advance();
+            self.skip_new_lines();
+
+            let start = left;
+
+            let inclusive = if let Ok(x) = self.current()
+                && x.kind == TokenKind::EQUAL
+            {
+                self.advance();
+                true
+            } else {
+                false
+            };
+
+            self.skip_new_lines();
+            let end = self.parse_add_sub()?;
+
+            let step = if let Ok(x) = self.current()
+                && x.kind == TokenKind::DOUBLEDOT
+            {
+                self.advance();
+                Some(Box::new(self.parse_add_sub()?))
+            } else {
+                None
+            };
+
+            self.skip_new_lines();
+            return Ok(Node::RangeNode {
+                start: Box::new(start),
+                end: Box::new(end),
+                step,
+                inclusive,
+            });
+        }
+
+        return Ok(left);
     }
 }

@@ -7,7 +7,7 @@ pub fn builtin_print(vm: &mut VM, arg_count: usize, newline: bool) {
     let string = args
         .iter()
         .rev()
-        .map(|x| x.to_string())
+        .map(|x| x.to_string(false))
         .collect::<Vec<_>>()
         .join(" ");
 

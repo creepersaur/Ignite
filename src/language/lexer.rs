@@ -7,7 +7,7 @@ use crate::language::token::{
 };
 
 const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?=\n";
-const DOUBLE: [&str; 7] = ["->", "||", "&&", "<=", ">=", "==", "!="];
+const DOUBLE: [&str; 10] = ["->", "||", "&&", "<=", ">=", "==", "!=", "=>", "::", ".."];
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -56,7 +56,7 @@ impl Lexer {
     pub fn get_tokens(&mut self) -> Vec<Token> {
         let mut tokens = vec![];
         let mut instr = None;
-
+		
         loop {
             if self.cur_char.is_none() {
                 break;
@@ -81,11 +81,20 @@ impl Lexer {
 
                 if instr.is_none() && PUNCTUATION.contains(c) {
                     if c == '.' && current_token.parse::<i32>().is_ok() {
-                        current_token.push(c);
-                        self.advance();
-                        continue;
-                    }
+                        let next_char = self.chars.get((self.pos + 1) as usize);
 
+                        if next_char == Some(&'.') {
+                            if !current_token.is_empty() {
+                                tokens.push(Self::identify(&current_token, start_pos));
+                                current_token.clear();
+                            }
+                        } else if current_token.parse::<i32>().is_ok() {
+                            current_token.push(c);
+                            self.advance();
+                            continue;
+                        }
+                    }
+					
                     if tokens.len() > 0
                         && DOUBLE
                             .contains(&format!("{}{c}", self.chars[self.pos as usize - 1]).as_str())
@@ -95,7 +104,6 @@ impl Lexer {
 
                         tokens.push(Self::identify(&current_token, start_pos - 1));
                         current_token.clear();
-                        self.advance();
                         break;
                     }
 
@@ -142,7 +150,7 @@ impl Lexer {
 
         let kind = match text {
             "\n" => NEWLINE,
-			"nil" => NIL,
+            "nil" => NIL,
 
             // Keywords
             "let" => LET,
@@ -150,14 +158,17 @@ impl Lexer {
             "fn" => FN,
             "return" => RETURN,
             "for" => FOR,
+            "in" => IN,
             "break" => BREAK,
             "continue" => CONTINUE,
+            "out" => OUT,
+            "loop" => LOOP,
             "while" => WHILE,
             "if" => IF,
             "else" => ELSE,
-			"class" => CLASS,
-			// "struct" => STRUCT,
-			// "interface" => INTERFACE,
+            "class" => CLASS,
+            // "struct" => STRUCT,
+            // "interface" => INTERFACE,
 
             // Punctuation
             "(" => LPAREN, // Parenthesis ()
@@ -188,14 +199,17 @@ impl Lexer {
             "and" => AND,
             "&&" => AND,
             ":" => COLON,
+            "::" => DOUBLECOLON,
             ";" => SEMI,
             "?" => QUESTION,
             "~" => TILDA,
             "`" => BACKTICK,
             "|" => PIPE,
             "." => DOT,
+            ".." => DOUBLEDOT,
             "," => COMMA,
             "->" => ARROW,
+            "=>" => FATARROW,
 
             _ => Self::identify_other(text),
         };

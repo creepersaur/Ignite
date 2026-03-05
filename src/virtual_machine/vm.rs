@@ -1,7 +1,18 @@
-use crate::virtual_machine::{builtin::*, chunk::Chunk, inst::Inst, value::Value};
+use crate::{
+    rc,
+    virtual_machine::{
+        builtin::*,
+        chunk::Chunk,
+        inst::Inst,
+        libs::{lib::Library, list_lib::ListLib},
+        traits::member_accessible::IMemberAccessible,
+        types::{function::TFunction, list::TList},
+        value::Value,
+    },
+};
 use bincode::config;
 use simply_colored::*;
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 const ORANGE: &str = "\x1b[38;2;255;150;60m";
 
@@ -13,11 +24,16 @@ pub struct VM {
     pub constants: Vec<Value>,
     pub globals: HashMap<Rc<String>, (Value, bool)>,
     pub locals: Vec<HashMap<Rc<String>, (Value, bool)>>,
+    pub libraries: HashMap<Rc<String>, Box<dyn Library>>,
+    pub iterators: Vec<(Value, usize)>,
 }
 
 #[allow(unused)]
 impl VM {
     pub fn new() -> Self {
+        let mut libs: HashMap<_, Box<dyn Library>> = HashMap::new();
+        libs.insert(rc!("list".to_string()), Box::new(ListLib));
+
         Self {
             pos: 0,
             instructions: vec![],
@@ -26,6 +42,8 @@ impl VM {
             constants: Vec::with_capacity(100),
             globals: HashMap::new(),
             locals: vec![HashMap::new()],
+            libraries: libs,
+            iterators: vec![],
         }
     }
 
@@ -54,6 +72,22 @@ impl VM {
         self.constants.extend(constants);
     }
 
+    pub fn call_function(&mut self, f: TFunction) {
+        if let Some((library, method)) = f.handler {
+            if let Some(lib) = self.libraries.get(&library) {
+                if let Some(this) = f.this {
+                    self.stack.push(*this);
+                }
+
+                let value = lib.get_function(method)(self);
+                self.stack.push(value);
+            }
+        } else {
+            self.call_stack.push(self.pos);
+            self.pos = f.entry;
+        }
+    }
+
     pub fn print_instructions(&self) {
         for (i, v) in self.instructions.iter().enumerate() {
             if matches!(v, Inst::NOP) {
@@ -61,6 +95,12 @@ impl VM {
                 continue;
             } else if matches!(v, Inst::EXIT) {
                 println!("{MAGENTA}{i:>2}\t{RED}EXIT{RESET}");
+                continue;
+            } else if matches!(v, Inst::RANGE) {
+                println!("{MAGENTA}{i:>2}\t{GREEN}RANGE{RESET}");
+                continue;
+            } else if let Inst::LIST(x) = v {
+                println!("{MAGENTA}{i:>2}\t{GREEN}LIST{RESET}({BLUE}{x}{RESET})");
                 continue;
             }
 
@@ -72,14 +112,23 @@ impl VM {
             let rest = parts.next().map_or("", |r| r);
 
             if rest.is_empty() {
-                println!("{MAGENTA}{:>2}{RESET}\t{ORANGE}{}{RESET}", i, opcode);
+                print!("{MAGENTA}{:>2}{RESET}\t{ORANGE}{}{RESET}", i, opcode);
             } else {
-                println!(
+                print!(
                     "{MAGENTA}{:>2}{RESET}\t{ORANGE}{}{RESET}({BLUE}{}{RESET})",
                     i,
                     opcode,
                     &rest[0..rest.len() - 1]
                 );
+            }
+
+            if let Inst::LOAD_CONST(x) = v {
+                println!(
+                    "{BLACK}   {:>3?}{RESET}",
+                    self.constants[*x].to_string(true)
+                );
+            } else {
+                println!("")
             }
         }
     }
@@ -98,16 +147,17 @@ impl VM {
         self.instructions = decoded.0.instructions;
     }
 
-    pub fn run(&mut self) {
-        self.pos = 0;
-
+    pub fn run(&mut self, debug: bool, stop_at_return: bool) {
         while self.pos < self.instructions.len() {
+            if debug {
+                println!("{BLACK}{} ...{RESET}", self.pos);
+            }
             let current = &self.instructions[self.pos];
 
             match current {
                 Inst::EXIT => return,
                 Inst::NOP => {}
-                Inst::PRINT => println!("{}", self.pop().to_string()),
+                Inst::PRINT => println!("{}", self.pop().to_string(false)),
                 Inst::POP => {
                     self.pop();
                 }
@@ -121,12 +171,44 @@ impl VM {
                         self.stack.push(given_value);
                     }
                 }
-                Inst::DEFAULTNIL => {
+                Inst::DEFAULT_NIL => {
                     if self.stack.len() == 0 {
                         self.stack.push(Value::NIL)
                     }
                 }
                 Inst::PUSH(value) => self.stack.push(value.clone()),
+                Inst::DUP => self.stack.push(
+                    self.stack
+                        .last()
+                        .expect("Cannot DUP, stack underflow.")
+                        .clone(),
+                ),
+
+                Inst::LIST(length) => {
+                    let values = (0..*length).map(|_| self.pop()).collect();
+                    self.stack
+                        .push(Value::List(TList::new(rc!(RefCell::new(values)))));
+                }
+
+                Inst::RANGE => {
+                    let inclusive_val = self.pop();
+                    let step = self.pop();
+                    let end = self.pop();
+                    let start = self.pop();
+
+                    let inclusive = if let Value::Bool(x) = inclusive_val {
+                        x
+                    } else {
+                        false
+                    };
+
+                    self.stack.push(Value::Range {
+                        start: Box::new(start),
+                        end: Box::new(end),
+                        step: Box::new(step),
+                        inclusive,
+                    });
+                }
 
                 Inst::ADD => {
                     if let (Value::Number(a), Value::Number(b)) = self.pop_two() {
@@ -143,10 +225,20 @@ impl VM {
                     }
                 }
                 Inst::MUL => {
-                    if let (Value::Number(a), Value::Number(b)) = self.pop_two() {
+                    let (a, b) = self.pop_two();
+
+                    if let (Value::Number(a), Value::Number(b)) = (&a, &b) {
                         self.stack.push(Value::Number(a * b));
+                    }
+                    else if let (Value::String(a), Value::Number(b)) = (&a, &b) {
+                        self.stack
+                            .push(Value::String(Rc::new(a.repeat(*b as usize))));
                     } else {
-                        panic!("MUL expects numbers");
+                        panic!(
+                            "Cannot multiply `{}` with `{}`",
+                            a.to_string(true),
+                            b.to_string(true)
+                        );
                     }
                 }
                 Inst::DIV => {
@@ -155,6 +247,14 @@ impl VM {
                     } else {
                         panic!("DIV expects numbers");
                     }
+                }
+                Inst::NEG => {
+                    let num = self.pop().as_number();
+                    self.stack.push(Value::Number(-num));
+                }
+                Inst::POS => {
+                    let num = self.pop().as_number();
+                    self.stack.push(Value::Number(num));
                 }
 
                 Inst::EQ => {
@@ -224,13 +324,13 @@ impl VM {
                     self.stack.push(Value::Bool(!res));
                 }
 
-                Inst::LOADCONST(idx) => self.stack.push(self.constants[*idx].clone()),
-                Inst::STOREGLOBAL(name) => {
+                Inst::LOAD_CONST(idx) => self.stack.push(self.constants[*idx].clone()),
+                Inst::STORE_GLOBAL(name) => {
                     let name = name.clone();
                     let value = self.pop();
                     self.globals.insert(name, (value, false));
                 }
-                Inst::LOADGLOBAL(name) => {
+                Inst::LOAD_GLOBAL(name) => {
                     self.stack.push(
                         self.globals
                             .get(name)
@@ -240,16 +340,16 @@ impl VM {
                     );
                 }
 
-                Inst::PUSHSCOPE => self.locals.push(HashMap::new()),
-                Inst::POPSCOPE => {
+                Inst::PUSH_SCOPE => self.locals.push(HashMap::new()),
+                Inst::POP_SCOPE => {
                     self.locals.pop();
                 }
-                Inst::STORELOCAL(name) => {
+                Inst::STORE_LOCAL(name) => {
                     let name = name.clone();
                     let value = self.pop();
                     self.locals.last_mut().unwrap().insert(name, (value, false));
                 }
-                Inst::LOADLOCAL(name) => {
+                Inst::LOAD_LOCAL(name) => {
                     let mut found = None;
 
                     for scope in self.locals.iter().rev() {
@@ -264,6 +364,11 @@ impl VM {
                     } else {
                         panic!("Unknown local variable: {name}");
                     }
+                }
+                Inst::STORE_LOCAL_CONST(name) => {
+                    let name = name.clone();
+                    let value = self.pop();
+                    self.locals.last_mut().unwrap().insert(name, (value, true));
                 }
 
                 Inst::LOAD(name) => {
@@ -284,7 +389,7 @@ impl VM {
                         panic!("Unknown local/global variable: {name}");
                     }
                 }
-                Inst::SETVAR(name) => {
+                Inst::SET_VAR(name) => {
                     let mut found_idx = None;
 
                     for i in (0..self.locals.len()).rev() {
@@ -316,7 +421,7 @@ impl VM {
                     self.pos = *idx;
                     continue;
                 }
-                Inst::JUMPIFFALSE(idx) => {
+                Inst::JUMP_IF_FALSE(idx) => {
                     let idx = *idx;
                     if !self.pop().is_truthy() {
                         self.pos = idx;
@@ -326,15 +431,14 @@ impl VM {
 
                 Inst::CALL => {
                     let func = self.pop();
+
                     if let Value::Function(f) = func {
-                        self.call_stack.push(self.pos);
-                        self.pos = f.entry;
-                        continue;
+                        self.call_function(f);
                     } else {
                         panic!("Tried calling non-function")
                     }
                 }
-                Inst::CALLBUILTIN(name, arg_count) => match &***name {
+                Inst::CALL_BUILTIN(name, arg_count) => match &***name {
                     "print" => builtin_print(self, *arg_count, false),
                     "println" => builtin_print(self, *arg_count, true),
                     _ => panic!("Unknown built-in: {name}"),
@@ -343,6 +447,82 @@ impl VM {
                     if let Some(last) = self.call_stack.last() {
                         self.pos = *last;
                         self.call_stack.pop();
+                    }
+					if stop_at_return {
+						break;
+					}
+                }
+
+                Inst::GET_PROP => {
+                    let member = self.pop();
+                    let target = self.pop();
+
+                    match target {
+                        Value::List(x) => {
+                            let value = x.get_member(self, &member);
+                            self.stack.push(value);
+                        }
+
+                        _ => panic!("Cannot get property on `{target:?}`"),
+                    }
+                }
+
+                Inst::GET_ITER => {
+                    let value = self.pop();
+                    self.iterators.push((value, 0));
+                }
+                Inst::FOR_ITER(jump_end) => {
+                    let target_idx = self.iterators.len() - 1;
+                    let (value, idx) = &mut self.iterators[target_idx];
+
+                    if let Value::List(list) = value {
+                        if *idx < list.values.borrow().len() {
+                            self.stack.push(list.values.borrow()[*idx].clone());
+                            *idx += 1;
+                        } else {
+                            self.iterators.pop();
+                            self.pos = *jump_end;
+                            continue;
+                        }
+                    }
+                    if let Value::Range {
+                        start,
+                        end,
+                        step,
+                        inclusive,
+                    } = value
+                    {
+                        let s = start.as_number();
+                        let e = end.as_number();
+                        let step_val = step.as_number();
+
+                        let current_value = s + (*idx as f32 * step_val);
+
+                        let is_within_bounds = if *inclusive {
+                            if step_val >= 0.0 {
+                                current_value <= e
+                            } else {
+                                current_value >= e
+                            }
+                        } else {
+                            if step_val >= 0.0 {
+                                current_value < e
+                            } else {
+                                current_value > e
+                            }
+                        };
+
+                        if is_within_bounds {
+                            self.stack.push(Value::Number(current_value));
+                            *idx += 1;
+                        } else {
+                            // Range exhausted
+                            self.iterators.pop();
+                            self.pos = *jump_end;
+                            continue;
+                        }
+                    } else {
+                        panic!("Cannot iterate over {value:?}");
                     }
                 }
 

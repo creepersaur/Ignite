@@ -1,18 +1,14 @@
-use std::rc::Rc;
-
 use crate::{
     language::{nodes::Node, token::TokenKind},
-    virtual_machine::{
-        builtin::BUILTINS, inst::Inst, value::{Function, Value}
-    },
+    patch, patch_execute,
+    virtual_machine::{builtin::BUILTINS, inst::Inst, types::function::TFunction, value::Value},
 };
+use std::rc::Rc;
 
 pub struct Compiler {
     pub constants: Vec<Value>,
     pub offset: usize,
-    // pub functions: Vec<FunctionDef>,
     pub instructions: Vec<Inst>,
-    // pub function_entries: HashMap<Rc<String>, usize>,
 }
 
 impl Compiler {
@@ -26,12 +22,12 @@ impl Compiler {
         }
     }
 
-    pub fn compile_node(&mut self, node: &Node) -> Vec<Inst> {
+    pub fn compile_node(&mut self, node: &Node) {
         match node {
-            Node::NIL => vec![Inst::PUSH(Value::NIL)],
-            Node::Variable(x) => vec![Inst::LOAD(x.clone())],
-            Node::NumberLiteral(x) => vec![Inst::PUSH(Value::Number(*x))],
-            Node::BooleanLiteral(x) => vec![Inst::PUSH(Value::Bool(*x))],
+            Node::NIL => self.instructions.push(Inst::PUSH(Value::NIL)),
+            Node::Variable(x) => self.instructions.push(Inst::LOAD(x.clone())),
+            Node::NumberLiteral(x) => self.instructions.push(Inst::PUSH(Value::Number(*x))),
+            Node::BooleanLiteral(x) => self.instructions.push(Inst::PUSH(Value::Bool(*x))),
             Node::StringLiteral(x) => {
                 if let Some((idx, _)) = self
                     .constants
@@ -39,23 +35,38 @@ impl Compiler {
                     .enumerate()
                     .find(|(_, thing)| thing == &&Value::String(Rc::new(x.clone())))
                 {
-                    return vec![Inst::LOADCONST(idx)];
+                    self.instructions.push(Inst::LOAD_CONST(idx));
+                    return;
                 }
                 self.constants.push(Value::String(Rc::new(x.to_string())));
-                return vec![Inst::LOADCONST(self.constants.len() - 1)];
+                self.instructions
+                    .push(Inst::LOAD_CONST(self.constants.len() - 1));
+            }
+            Node::ListNode(values) => self.compile_list(values),
+            Node::RangeNode {
+                start,
+                end,
+                step,
+                inclusive,
+            } => self.compile_range(start, end, step, *inclusive),
+
+            Node::ExprStmt(x) => {
+                self.compile_node(&*x);
+                self.instructions.push(Inst::POP)
             }
 
-            Node::ExprStmt(x) => [self.compile_node(&*x), vec![Inst::POP]].concat(),
-
+            Node::UnaryOp { op, right } => self.compile_unary_op(op, right),
             Node::BinOp { left, right, op } => self.compile_bin_op(left, right, op),
 
             Node::LetStatement {
-                name,
-                value,
+                names,
+                values,
                 is_const,
-            } => self.compile_let(name, value, *is_const),
+            } => self.compile_let(names, values, *is_const),
 
             Node::SetVariable { target, value } => self.compile_set_variable(target, value),
+
+            Node::MemberAccess { expr, member } => self.compile_member_access(expr, member),
 
             Node::FunctionCall { target, args } => self.compile_function_call(target, args),
 
@@ -75,15 +86,25 @@ impl Compiler {
                 else_block,
             } => self.compile_if_statement(condition, block, elifs, else_block),
 
-            Node::Block { body } => [
-                vec![Inst::PUSHSCOPE],
-                body.iter()
-                    .map(|x| self.compile_node(x))
-                    .collect::<Vec<_>>()
-                    .concat(),
-                vec![Inst::POPSCOPE],
-            ]
-            .concat(),
+            Node::Block { body } => self.compile_block(body),
+
+            Node::SingleLineBlock { body } => {
+                self.instructions.push(Inst::PUSH_SCOPE);
+                self.compile_node(&**body);
+                self.instructions.push(Inst::POP_SCOPE);
+            }
+
+            Node::Loop { block } => self.compile_loop(block),
+
+            Node::WhileLoop { condition, block } => self.compile_while_loop(condition, block),
+
+            Node::BreakStatement(value) => self.compile_break(value),
+
+            Node::ForLoop {
+                var_name,
+                expr,
+                block,
+            } => self.compile_for(var_name, expr, block),
 
             _ => panic!("Unknown node: `{node:?}`"),
         }
@@ -91,14 +112,47 @@ impl Compiler {
 }
 
 impl Compiler {
-    pub fn compile_bin_op(
+    pub fn compile_range(
         &mut self,
-        left: &Box<Node>,
-        right: &Box<Node>,
-        op: &TokenKind,
-    ) -> Vec<Inst> {
-        let mut values = [self.compile_node(&**left), self.compile_node(&**right)].concat();
-        values.push(match op {
+        start: &Box<Node>,
+        end: &Box<Node>,
+        step: &Option<Box<Node>>,
+        inclusive: bool,
+    ) {
+        self.compile_node(&**start);
+        self.compile_node(&**end);
+        if let Some(step) = step {
+            self.compile_node(&**step);
+        } else {
+            self.instructions.push(Inst::PUSH(Value::Number(1.0)))
+        }
+        self.instructions.push(Inst::PUSH(Value::Bool(inclusive)));
+        self.instructions.push(Inst::RANGE);
+    }
+
+    pub fn compile_list(&mut self, values: &Vec<Node>) {
+        for i in values.iter().rev() {
+            self.compile_node(i);
+        }
+        self.instructions.push(Inst::LIST(values.len()));
+    }
+
+    pub fn compile_unary_op(&mut self, op: &TokenKind, right: &Box<Node>) {
+        self.compile_node(right);
+
+        match op {
+            TokenKind::MINUS => self.instructions.push(Inst::NEG),
+            TokenKind::PLUS => self.instructions.push(Inst::POS),
+            TokenKind::BANG => self.instructions.push(Inst::NOT),
+
+            _ => panic!("Tried compiling unknown unary op: {op:?}"),
+        }
+    }
+
+    pub fn compile_bin_op(&mut self, left: &Box<Node>, right: &Box<Node>, op: &TokenKind) {
+        self.compile_node(&**left);
+        self.compile_node(&**right);
+        self.instructions.push(match op {
             TokenKind::PLUS => Inst::ADD,
             TokenKind::MINUS => Inst::SUB,
             TokenKind::STAR => Inst::MUL,
@@ -117,46 +171,75 @@ impl Compiler {
 
             _ => panic!("Cannot compile unknown bin-op: `{op:?}`"),
         });
-        values
     }
 
     pub fn compile_let(
         &mut self,
-        name: &Rc<String>,
-        value: &Option<Box<Node>>,
+        names: &Vec<Rc<String>>,
+        values: &Vec<Option<Box<Node>>>,
         is_const: bool,
-    ) -> Vec<Inst> {
-        let mut instructions = if let Some(val) = value {
-            self.compile_node(&**val)
-        } else {
-            vec![Inst::PUSH(Value::NIL)]
-        };
+    ) {
+        for (i, value) in values.iter().enumerate() {
+            if let Some(val) = value {
+                self.compile_node(&**val)
+            } else {
+                self.instructions.push(Inst::PUSH(Value::NIL));
+            };
 
-        if is_const {
-            instructions.push(Inst::DEFCONST(name.clone()));
-        } else {
-            instructions.push(Inst::STORELOCAL(name.clone()));
+            if is_const {
+                self.instructions
+                    .push(Inst::STORE_LOCAL_CONST(names[i].clone()));
+            } else {
+                self.instructions.push(Inst::STORE_LOCAL(names[i].clone()));
+            }
         }
-        instructions
     }
 
-    pub fn compile_function_call(&mut self, target: &Box<Node>, args: &Vec<Node>) -> Vec<Inst> {
-        let mut instructions = vec![];
+    pub fn compile_block(&mut self, body: &Vec<Node>) {
+        let mut outs = vec![];
 
+        self.instructions.push(Inst::PUSH_SCOPE);
+        for i in body {
+            if let Node::OutStatement(val) = i {
+                if let Some(v) = val {
+                    self.compile_node(&**v);
+                } else {
+                    self.instructions.push(Inst::PUSH(Value::NIL));
+                }
+                outs.push(patch!(self.instructions));
+            } else {
+                self.compile_node(i);
+            }
+        }
+        self.instructions.push(Inst::DEFAULT_NIL);
+        self.instructions.push(Inst::POP_SCOPE);
+
+        let block_end = self.instructions.len();
+        for i in outs {
+            patch_execute!(self.instructions, i, Inst::JUMP(block_end));
+        }
+    }
+
+    pub fn compile_member_access(&mut self, expr: &Box<Node>, member: &Box<Node>) {
+        self.compile_node(&**expr);
+        self.compile_node(&**member);
+        self.instructions.push(Inst::GET_PROP);
+    }
+
+    pub fn compile_function_call(&mut self, target: &Box<Node>, args: &Vec<Node>) {
         for i in args {
-            instructions.extend(self.compile_node(i));
+            self.compile_node(i);
         }
 
         if let Node::Variable(x) = &**target
             && BUILTINS.contains(&&***x)
         {
-			instructions.push(Inst::CALLBUILTIN(x.clone(), args.len()));
+            self.instructions
+                .push(Inst::CALL_BUILTIN(x.clone(), args.len()));
         } else {
-            instructions.extend(self.compile_node(&**target));
-            instructions.push(Inst::CALL);
+            self.compile_node(&**target);
+            self.instructions.push(Inst::CALL);
         }
-
-        instructions
     }
 
     pub fn compile_if_statement(
@@ -165,133 +248,219 @@ impl Compiler {
         block: &Box<Node>,
         elifs: &Vec<(Node, Node)>,
         else_block: &Option<Box<Node>>,
-    ) -> Vec<Inst> {
-        let offset = self.offset;
-        let mut instructions = vec![];
-        let base = self.instructions.len();
+    ) {
+        let mut if_end_jumps = vec![];
 
-        // helper: patches a jump placeholder
-        let patch = |instrs: &mut Vec<Inst>, global_idx: usize, target: usize| {
-            instrs[global_idx - base] = match instrs[global_idx - base] {
-                Inst::JUMPIFFALSE(_) => Inst::JUMPIFFALSE(target + offset),
-                Inst::JUMP(_) => Inst::JUMP(target + offset),
-                _ => unreachable!(),
-            };
+        let mut handler = |condition: &Node, block: &Node| {
+            self.compile_node(&condition);
+
+            let jump_if_false = patch!(self.instructions);
+
+            self.compile_node(&block);
+
+            if_end_jumps.push(patch!(self.instructions));
+
+            patch_execute!(
+                self.instructions,
+                jump_if_false,
+                Inst::JUMP_IF_FALSE(self.instructions.len())
+            );
         };
 
-        // all jumps that must skip to the END after any branch executes
-        let mut end_jumps: Vec<usize> = vec![];
+        handler(&**condition, &**block);
 
-        // ---------- IF ----------
-        instructions.extend(self.compile_node(condition));
-
-        let if_false_jump = base + instructions.len();
-        instructions.push(Inst::JUMPIFFALSE(0 + self.offset));
-
-        instructions.extend(self.compile_node(block));
-
-        let if_end_jump = base + instructions.len();
-        instructions.push(Inst::JUMP(0 + self.offset));
-        end_jumps.push(if_end_jump);
-
-        // next branch starts here
-        let mut next_branch_start = base + instructions.len();
-        patch(&mut instructions, if_false_jump, next_branch_start);
-
-        // ---------- ELIFS ----------
-        for (elif_cond, elif_block) in elifs {
-            instructions.extend(self.compile_node(elif_cond));
-
-            let elif_false_jump = base + instructions.len();
-            instructions.push(Inst::JUMPIFFALSE(0 + self.offset));
-
-            instructions.extend(self.compile_node(elif_block));
-
-            let elif_end_jump = base + instructions.len();
-            instructions.push(Inst::JUMP(0 + self.offset));
-            end_jumps.push(elif_end_jump);
-
-            next_branch_start = base + instructions.len();
-            patch(&mut instructions, elif_false_jump, next_branch_start);
+        for (condition, block) in elifs {
+            handler(&*condition, &*block);
         }
 
-        // ---------- ELSE ----------
-        if let Some(else_block) = else_block {
-            instructions.extend(self.compile_node(else_block));
+        if let Some(body) = else_block {
+            self.compile_node(&**body);
         }
 
-        // ---------- PATCH ALL END JUMPS ----------
-        let end = base + instructions.len();
-        for j in end_jumps {
-            patch(&mut instructions, j, end);
-        }
+        self.instructions.push(Inst::DEFAULT_NIL);
 
-        instructions
+        let if_end = self.instructions.len();
+        for x in if_end_jumps {
+            patch_execute!(self.instructions, x, Inst::JUMP(if_end));
+        }
     }
 
-    pub fn compile_set_variable(&mut self, target: &Box<Node>, value: &Box<Node>) -> Vec<Inst> {
-        let mut instructions = vec![];
-
+    pub fn compile_set_variable(&mut self, target: &Box<Node>, value: &Box<Node>) {
         if let Node::Variable(x) = &**target {
-            instructions.extend(self.compile_node(&**value));
-            instructions.push(Inst::SETVAR(x.clone()));
+            self.compile_node(&**value);
+            self.instructions.push(Inst::SET_VAR(x.clone()));
         } else {
             panic!("Cannot set equal a value to `{:?}`", **target);
         }
-
-        instructions
     }
 
-    pub fn compile_return(&mut self, value: &Option<Box<Node>>) -> Vec<Inst> {
+    pub fn compile_return(&mut self, value: &Option<Box<Node>>) {
         if let Some(val) = value {
-            [self.compile_node(val), vec![Inst::RETURN]].concat()
+            self.compile_node(val);
         } else {
-            vec![Inst::PUSH(Value::NIL), Inst::RETURN]
+            self.instructions.push(Inst::PUSH(Value::NIL));
         }
+        self.instructions.push(Inst::RETURN);
     }
 
     pub fn compile_function_def(
         &mut self,
-        name: &Rc<String>,
+        name: &Option<Rc<String>>,
         _return_type: &Option<Rc<String>>,
         args: &Vec<(Rc<String>, Option<Rc<String>>, Option<Node>)>,
         block: &Box<Node>,
-    ) -> Vec<Inst> {
-        self.offset += 4;
-        let block_instructions = self.compile_node(block);
-        self.offset -= 4;
+    ) {
+        let func_value = patch!(self.instructions);
+        if let Some(name) = name {
+            self.instructions.push(Inst::STORE_LOCAL(name.clone()));
+        }
+        let func_jump_to_end = patch!(self.instructions);
 
-        let mut pre_call_instructions = vec![];
-        for (arg_name, _, default_value) in args {
-			pre_call_instructions.push(Inst::DEFAULTNIL);
+        let func_start = self.offset + self.instructions.len();
 
-			if let Some(def) = default_value {
-				pre_call_instructions.extend(self.compile_node(def));
-				pre_call_instructions.push(Inst::DEFAULT);
-			}
-			
-			pre_call_instructions.push(Inst::STORELOCAL(arg_name.clone()));
+        for (arg_name, _, default_value) in args.iter().rev() {
+            self.instructions.push(Inst::DEFAULT_NIL);
+
+            if let Some(def) = default_value {
+                self.compile_node(def);
+                self.instructions.push(Inst::DEFAULT);
+            }
+
+            self.instructions.push(Inst::STORE_LOCAL(arg_name.clone()));
         }
 
-        let mut func_instructions = [pre_call_instructions, block_instructions].concat();
-        func_instructions.push(Inst::PUSH(Value::NIL));
-        func_instructions.push(Inst::RETURN);
+        self.compile_node(block);
 
-        let mut instructions = vec![];
+        self.instructions.push(Inst::RETURN);
 
-        instructions.push(Inst::PUSH(Value::Function(Function::new(
-            self.instructions.len() + self.offset + 3,
-			args.len()
-        ))));
-        instructions.push(Inst::STORELOCAL(name.clone()));
-        instructions.push(Inst::JUMP(
-            self.instructions.len()
-                + func_instructions.len()
-                + instructions.len()
-                + self.offset
-                + 1,
-        ));
+        patch_execute!(
+            self.instructions,
+            func_value,
+            Inst::PUSH(Value::Function(TFunction::new(func_start, args.len())))
+        );
 
-        [instructions, func_instructions].concat()
+        patch_execute!(
+            self.instructions,
+            func_jump_to_end,
+            Inst::JUMP(self.instructions.len())
+        );
     }
+
+    pub fn compile_while_loop(&mut self, condition: &Box<Node>, block: &Box<Node>) {
+        let loop_start_index = self.instructions.len();
+
+        self.compile_node(&*condition);
+
+        let end_loop_jump = patch!(self.instructions);
+
+        self.compile_node(&*block);
+
+        self.instructions.push(Inst::JUMP(loop_start_index));
+
+        patch_execute!(
+            self.instructions,
+            end_loop_jump,
+            Inst::JUMP_IF_FALSE(self.instructions.len())
+        );
+
+        patch_execute!(
+            self.instructions,
+            "break",
+            Inst::JUMP(self.instructions.len()),
+            loop_start_index
+        );
+
+        self.instructions.push(Inst::DEFAULT_NIL);
+    }
+
+    pub fn compile_for(&mut self, var_name: &Rc<String>, expr: &Box<Node>, block: &Box<Node>) {
+        self.compile_node(&*expr);
+        self.instructions.push(Inst::GET_ITER);
+
+        let loop_start_index = self.instructions.len();
+
+        let for_iter = patch!(self.instructions);
+        self.instructions.push(Inst::STORE_LOCAL(var_name.clone()));
+
+        self.compile_node(&*block);
+
+        self.instructions.push(Inst::JUMP(loop_start_index));
+
+        patch_execute!(
+            self.instructions,
+            for_iter,
+            Inst::FOR_ITER(self.instructions.len())
+        );
+
+        patch_execute!(
+            self.instructions,
+            "break",
+            Inst::JUMP(self.instructions.len()),
+            loop_start_index
+        );
+
+        self.instructions.push(Inst::DEFAULT_NIL);
+    }
+
+    pub fn compile_loop(&mut self, block: &Box<Node>) {
+        let loop_start_index = self.instructions.len();
+
+        self.compile_node(&*block);
+
+        self.instructions.push(Inst::JUMP(loop_start_index));
+
+        patch_execute!(
+            self.instructions,
+            "break",
+            Inst::JUMP(self.instructions.len()),
+            loop_start_index
+        );
+
+        self.instructions.push(Inst::DEFAULT_NIL);
+    }
+
+    pub fn compile_break(&mut self, value: &Option<Box<Node>>) {
+        if let Some(val) = value {
+            self.compile_node(&*val);
+        } else {
+            self.instructions.push(Inst::PUSH(Value::NIL));
+        }
+        let _ = patch!(self.instructions, "break");
+    }
+}
+
+#[macro_export]
+macro_rules! patch {
+    ($instructions:expr, $expr:expr) => {{
+        $instructions.push(Inst::PATCH_ME($expr.to_string()));
+        $instructions.len() - 1
+    }};
+
+    ($instructions:expr) => {{
+        $instructions.push(Inst::PATCH_ME(String::new()));
+        $instructions.len() - 1
+    }};
+}
+
+#[macro_export]
+macro_rules! patch_execute {
+    ($instructions:expr, $expr:literal, $new_expr:expr, $from:expr) => {
+        for i in $from..$instructions.len() {
+            if $instructions[i] == Inst::PATCH_ME($expr.to_string()) {
+                $instructions[i] = $new_expr;
+            }
+        }
+    };
+
+    ($instructions:expr, $expr:literal, $new_expr:expr) => {
+        for i in 0..$instructions.len() {
+            if $instructions[i] == Inst::PATCH_ME($expr.to_string()) {
+                $instructions[i] = $new_expr;
+            }
+        }
+    };
+
+    ($instructions:expr, $i:expr, $new_expr:expr) => {{
+        $instructions[$i] = $new_expr;
+    }};
 }
