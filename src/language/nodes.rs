@@ -18,6 +18,7 @@ pub enum Node {
 
     // COLLECTIONS
     ListNode(Vec<Node>),
+    DictNode(Vec<(Node, Node)>),
 
 	// Range
 	RangeNode {

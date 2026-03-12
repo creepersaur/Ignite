@@ -41,23 +41,27 @@ impl IMemberAccessible for TList {
 
         if let Value::String(member) = member {
             let functions = [
-                "push", "insert", "remove", "map", "pop", "clear", "append", "concat", "copy",
-                "count", "sort", "reverse", "fill", "rep", "push_n",
+                "len", "push", "insert", "remove", "map", "pop", "clear", "append", "concat",
+                "copy", "count", "sort", "reverse", "fill", "rep", "push_n",
             ];
 
             if functions.contains(&member.as_str()) {
-                return lib_function!(self, "list", member, 1);
-            }
-
-            match member.as_str() {
-                "length" => {
-                    return Value::Number(self.values.borrow().len() as f32);
-                }
-
-                _ => panic!("Cannot get member `{}` on {self:?}", member.to_string()),
+                return lib_function!(self, "list", member, 1, Value::List);
             }
         }
 
         panic!("Cannot get member `{}` on {self:?}", member.to_string(true));
+    }
+
+    fn set_member(&self, member: &Value, value: Value) {
+        if let Value::Number(index) = member {
+            let len = self.values.borrow().len();
+            let target_index = to_index(*index, len);
+
+            self.values.borrow_mut()[target_index] = value;
+            return;
+        }
+
+        panic!("Cannot set member `{}` on {self:?}", member.to_string(true));
     }
 }

@@ -4,9 +4,9 @@ use crate::{
         builtin::*,
         chunk::Chunk,
         inst::Inst,
-        libs::{lib::Library, list_lib::ListLib},
+        libs::{dict_lib::DictLib, lib::Library, list_lib::ListLib},
         traits::member_accessible::IMemberAccessible,
-        types::{function::TFunction, list::TList},
+        types::{dict::TDict, function::TFunction, list::TList},
         value::Value,
     },
 };
@@ -33,6 +33,7 @@ impl VM {
     pub fn new() -> Self {
         let mut libs: HashMap<_, Box<dyn Library>> = HashMap::new();
         libs.insert(rc!("list".to_string()), Box::new(ListLib));
+        libs.insert(rc!("dict".to_string()), Box::new(DictLib));
 
         Self {
             pos: 0,
@@ -184,10 +185,16 @@ impl VM {
                         .clone(),
                 ),
 
+                // Collections
                 Inst::LIST(length) => {
                     let values = (0..*length).map(|_| self.pop()).collect();
                     self.stack
                         .push(Value::List(TList::new(rc!(RefCell::new(values)))));
+                }
+                Inst::DICT(length) => {
+                    let values = (0..*length).map(|_| self.pop_two()).collect();
+                    self.stack
+                        .push(Value::Dict(TDict::new(rc!(RefCell::new(values)))));
                 }
 
                 Inst::RANGE => {
@@ -229,8 +236,7 @@ impl VM {
 
                     if let (Value::Number(a), Value::Number(b)) = (&a, &b) {
                         self.stack.push(Value::Number(a * b));
-                    }
-                    else if let (Value::String(a), Value::Number(b)) = (&a, &b) {
+                    } else if let (Value::String(a), Value::Number(b)) = (&a, &b) {
                         self.stack
                             .push(Value::String(Rc::new(a.repeat(*b as usize))));
                     } else {
@@ -448,9 +454,9 @@ impl VM {
                         self.pos = *last;
                         self.call_stack.pop();
                     }
-					if stop_at_return {
-						break;
-					}
+                    if stop_at_return {
+                        break;
+                    }
                 }
 
                 Inst::GET_PROP => {
@@ -463,7 +469,29 @@ impl VM {
                             self.stack.push(value);
                         }
 
+                        Value::Dict(x) => {
+                            let value = x.get_member(self, &member);
+                            self.stack.push(value);
+                        }
+
                         _ => panic!("Cannot get property on `{target:?}`"),
+                    }
+                }
+				Inst::SET_PROP => {
+					let member = self.pop();
+                    let target = self.pop();
+                    let value = self.pop();
+
+                    match target {
+                        Value::List(x) => {
+                            x.set_member(&member, value);
+                        }
+
+                        Value::Dict(x) => {
+                            x.set_member(&member, value);
+                        }
+
+                        _ => panic!("Cannot set property `{member:?}` on `{target:?}`"),
                     }
                 }
 

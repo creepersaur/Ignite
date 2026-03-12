@@ -9,6 +9,16 @@ use crate::{
 pub struct ListLib;
 
 impl ListLib {
+    fn len(vm: &mut VM) -> Value {
+        let list = vm.pop();
+
+        if let Value::List(inner) = list {
+            Value::Number(inner.values.borrow().len() as f32)
+        } else {
+            panic!("Can only use list.len on Lists");
+        }
+    }
+
     fn push(vm: &mut VM) -> Value {
         let list = vm.pop();
         let new_value = vm.pop();
@@ -61,7 +71,7 @@ impl ListLib {
         if let Value::List(inner) = list {
             return inner.values.borrow_mut().pop().unwrap_or(Value::NIL);
         } else {
-            panic!("Can only use list.remove on Lists");
+            panic!("Can only use list.pop on Lists");
         }
     }
 
@@ -72,7 +82,7 @@ impl ListLib {
             inner.values.borrow_mut().clear();
             return Value::NIL;
         } else {
-            panic!("Can only use list.remove on Lists");
+            panic!("Can only use list.clear on Lists");
         }
     }
 
@@ -248,6 +258,7 @@ impl Library for ListLib {
 
     fn get_function(&self, name: Rc<String>) -> Box<dyn Fn(&mut VM) -> Value> {
         match name.as_str() {
+			"len" => return Box::new(Self::len),
             "push" => return Box::new(Self::push),
             "insert" => return Box::new(Self::insert),
             "remove" => return Box::new(Self::remove),

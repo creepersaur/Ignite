@@ -1,5 +1,5 @@
 use bincode::{Decode, Encode};
-use std::{fmt::Debug, rc::Rc};
+use std::{fmt::Debug, hash::{Hash, Hasher}, rc::Rc};
 
 use crate::virtual_machine::value::Value;
 
@@ -40,4 +40,15 @@ impl Debug for TFunction {
         f.write_str(&format!("entry: {}", self.entry)).unwrap();
         Ok(())
     }
+}
+
+impl Eq for TFunction {}
+
+impl Hash for TFunction {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		self.entry.hash(state);
+		self.args.hash(state);
+		self.handler.hash(state);
+		self.this.hash(state);
+	}
 }

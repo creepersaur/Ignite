@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use std::collections::HashMap;
+
 use crate::{
     language::{
         nodes::Node,
@@ -72,8 +74,6 @@ impl Parser {
         self.skip_new_lines();
 
         match self.current()?.kind {
-            TokenKind::LET => self.parse_let(false),
-            TokenKind::CONST => self.parse_let(true),
             TokenKind::RETURN => self.parse_return(),
             TokenKind::OUT => self.parse_out(),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
@@ -236,7 +236,10 @@ impl Parser {
                 expr
             }
             TokenKind::LBRACK => self.parse_list(),
+            TokenKind::LBRACE => self.parse_dict(),
 
+            TokenKind::LET => self.parse_let(false),
+            TokenKind::CONST => self.parse_let(true),
             TokenKind::FN => self.parse_function_def(true),
             TokenKind::LOOP => self.parse_loop(),
             TokenKind::WHILE => self.parse_while(),
@@ -298,6 +301,59 @@ impl Parser {
         self.advance()?;
 
         Ok(Node::ListNode(values))
+    }
+
+    fn parse_dict(&mut self) -> NodeResult {
+        self.advance()?;
+
+        let mut data = vec![];
+
+        loop {
+            self.skip_new_lines();
+
+            if let Ok(next) = self.current() {
+                if next.kind == TokenKind::RBRACE {
+                    break;
+                }
+            } else {
+                return Err(format!(
+                    "Unexpected end of input [EOF] while parsing dict. Expected `]`."
+                ));
+            }
+
+            let key_base = self.parse_expression()?;
+            let key = if let Ok(next) = self.current()
+                && next.kind == TokenKind::EQUAL
+            {
+				self.advance();
+                if let Node::Variable(x) = key_base {
+                    Node::StringLiteral(x.to_string())
+                } else {
+                    return Err(format!(
+                        "Expected identifier when parsing dict key. Have you tried using a colon (:)?"
+                    ));
+                }
+            } else {
+                self.expect_and_consume(TokenKind::COLON)?;
+                key_base
+            };
+
+            let value = self.parse_expression()?;
+
+            data.push((key, value));
+
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::COMMA
+            {
+                self.advance()?;
+            } else {
+                break;
+            }
+        }
+
+        self.advance()?;
+
+        Ok(Node::DictNode(data))
     }
 
     fn parse_expression(&mut self) -> NodeResult {

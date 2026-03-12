@@ -1,1 +1,6 @@
-a
+let hello = {
+	HELLO = 10,
+	WORLD = 20	
+}
+
+println(hello.get("HELLO"))

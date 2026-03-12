@@ -13,9 +13,12 @@ pub enum Inst {
     DEFAULT_NIL, // ✅
     PUSH(Value), // ✅
     DUP,         // ✅
-    LIST(usize), // ✅
     RANGE,       // ✅
     POP,         // ✅
+
+	// Collections
+    LIST(usize), // ✅
+    DICT(usize), // ✅
 
     PATCH_ME(String), // ✅
 
@@ -53,8 +56,9 @@ pub enum Inst {
     JUMP(usize),          // ✅
     JUMP_IF_FALSE(usize), // ✅
 
-    // Get property (member access)
+    // Get/Set property (member access)
     GET_PROP, // ✅
+    SET_PROP,      // ✅
 
     CALL,                            // ✅
     CALL_BUILTIN(Rc<String>, usize), // ✅

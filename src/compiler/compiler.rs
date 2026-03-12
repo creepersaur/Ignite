@@ -42,7 +42,10 @@ impl Compiler {
                 self.instructions
                     .push(Inst::LOAD_CONST(self.constants.len() - 1));
             }
+
             Node::ListNode(values) => self.compile_list(values),
+            Node::DictNode(values) => self.compile_dict(values),
+
             Node::RangeNode {
                 start,
                 end,
@@ -62,7 +65,7 @@ impl Compiler {
                 names,
                 values,
                 is_const,
-            } => self.compile_let(names, values, *is_const),
+            } => self.compile_let(names, &mut values.clone(), *is_const),
 
             Node::SetVariable { target, value } => self.compile_set_variable(target, value),
 
@@ -137,6 +140,14 @@ impl Compiler {
         self.instructions.push(Inst::LIST(values.len()));
     }
 
+    pub fn compile_dict(&mut self, values: &Vec<(Node, Node)>) {
+        for (k, v) in values.iter().rev() {
+            self.compile_node(k);
+            self.compile_node(v);
+        }
+        self.instructions.push(Inst::DICT(values.len()));
+    }
+
     pub fn compile_unary_op(&mut self, op: &TokenKind, right: &Box<Node>) {
         self.compile_node(right);
 
@@ -176,9 +187,11 @@ impl Compiler {
     pub fn compile_let(
         &mut self,
         names: &Vec<Rc<String>>,
-        values: &Vec<Option<Box<Node>>>,
+        values: &mut Vec<Option<Box<Node>>>,
         is_const: bool,
     ) {
+        values.resize(names.len(), Some(Box::new(Node::NIL)));
+
         for (i, value) in values.iter().enumerate() {
             if let Some(val) = value {
                 self.compile_node(&**val)
@@ -193,6 +206,8 @@ impl Compiler {
                 self.instructions.push(Inst::STORE_LOCAL(names[i].clone()));
             }
         }
+
+        self.compile_node(values[0].as_ref().unwrap());
     }
 
     pub fn compile_block(&mut self, body: &Vec<Node>) {
@@ -252,11 +267,13 @@ impl Compiler {
         let mut if_end_jumps = vec![];
 
         let mut handler = |condition: &Node, block: &Node| {
+            self.instructions.push(Inst::PUSH_SCOPE);
             self.compile_node(&condition);
 
             let jump_if_false = patch!(self.instructions);
 
             self.compile_node(&block);
+            self.instructions.push(Inst::POP_SCOPE);
 
             if_end_jumps.push(patch!(self.instructions));
 
@@ -289,6 +306,11 @@ impl Compiler {
         if let Node::Variable(x) = &**target {
             self.compile_node(&**value);
             self.instructions.push(Inst::SET_VAR(x.clone()));
+        } else if let Node::MemberAccess { expr, member } = &**target {
+            self.compile_node(&**value);
+            self.compile_node(&**expr);
+            self.compile_node(&**member);
+            self.instructions.push(Inst::SET_PROP);
         } else {
             panic!("Cannot set equal a value to `{:?}`", **target);
         }

@@ -1,7 +1,11 @@
 use bincode::{Decode, Encode};
-use std::{fmt::Debug, rc::Rc};
+use std::{
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    rc::Rc,
+};
 
-use crate::virtual_machine::types::{function::TFunction, list::TList};
+use crate::virtual_machine::types::{dict::TDict, function::TFunction, list::TList};
 
 #[allow(unused)]
 #[derive(Encode, Decode, Debug, Clone, PartialEq, PartialOrd)]
@@ -15,6 +19,7 @@ pub enum Value {
 
     // Collections
     List(TList),
+    Dict(TDict),
 
     Range {
         start: Box<Value>,
@@ -57,13 +62,49 @@ impl Value {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-			Self::Range {start, end, step, inclusive} => format!(
-				"Range<{}..{}{}..{}>",
-				start.to_string(true),
-				if *inclusive { "=" } else {""},
-				end.to_string(true),
-				step.to_string(true),
-			)
+            Self::Dict(dict) => format!(
+                "{{{}}}",
+                dict.values
+                    .borrow()
+                    .iter()
+                    .map(|(k, v)| {
+                        let key = if let Value::Dict(key) = k {
+                            if dict.values.as_ptr() == key.values.as_ptr() {
+                                String::from("{...}")
+                            } else {
+                                k.to_string(true)
+                            }
+                        } else {
+                            k.to_string(true)
+                        };
+
+                        let value = if let Value::Dict(val) = v {
+                            if dict.values.as_ptr() == val.values.as_ptr() {
+                                String::from("{...}")
+                            } else {
+                                v.to_string(true)
+                            }
+                        } else {
+                            v.to_string(true)
+                        };
+
+                        format!("{key}: {value}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Range {
+                start,
+                end,
+                step,
+                inclusive,
+            } => format!(
+                "Range<{}..{}{}..{}>",
+                start.to_string(true),
+                if *inclusive { "=" } else { "" },
+                end.to_string(true),
+                step.to_string(true),
+            ),
         }
     }
 
@@ -80,6 +121,45 @@ impl Value {
             *x
         } else {
             panic!("Cannot convert `{self:?}` to number.")
+        }
+    }
+}
+
+impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+
+        match self {
+            Self::NIL => (),
+            Self::Number(n) => {
+                // We convert to bits to provide a consistent hash.
+                n.to_bits().hash(state);
+            }
+            Self::Bool(b) => b.hash(state),
+            Self::String(s) => s.hash(state),
+            Self::Function(f) => f.hash(state),
+
+            // For Rc/RefCell types, you usually hash the pointer address
+            Self::List(l) => {
+                std::ptr::hash(l.values.as_ptr(), state);
+            }
+            Self::Dict(d) => {
+                std::ptr::hash(d.values.as_ptr(), state);
+            }
+
+            Self::Range {
+                start,
+                end,
+                step,
+                inclusive,
+            } => {
+                start.hash(state);
+                end.hash(state);
+                step.hash(state);
+                inclusive.hash(state);
+            }
         }
     }
 }
