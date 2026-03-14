@@ -1,3 +1,4 @@
-for i in "hello" {
-	println(i)
-}
+fn my_function() {}
+
+my_function()
+my_function()

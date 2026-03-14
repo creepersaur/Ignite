@@ -480,6 +480,7 @@ impl VM {
                     } else {
                         panic!("Tried calling non-function")
                     }
+					continue;
                 }
                 Inst::CALL_BUILTIN(name, arg_count) => match &***name {
                     "print" => builtin_print(self, *arg_count, false),
