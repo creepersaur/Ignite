@@ -1,9 +1,12 @@
 import TopBar from "../components/topbar/topbar";
+import "./styles/api.css"
 
 export default function Docs() {
 	return <>
 		<TopBar/>
 
-		Documentation Site
+		<div className="main">
+			Documentation Site....?
+		</div>
 	</>
 }

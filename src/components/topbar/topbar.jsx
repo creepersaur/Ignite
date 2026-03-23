@@ -5,10 +5,10 @@ import GithubIcon from '../../assets/GithubIcon.svg'
 
 export default function TopBar() {
 	return <div className="topbar">
-		<a className="title" href="/">
+		<Link className="title" to="/">
 			<img src={icon} alt="IgniteIcon" />
 			<div className="text">Ignite</div>
-		</a>
+		</Link>
 
 		<div className="navigation">
 			<Link to="/docs">Documentation</Link>
