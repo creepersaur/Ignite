@@ -1,0 +1,17 @@
+* {
+    margin: 0;
+    font-family: "BR Cobane", Inter, "Inter 24pt", Arial, sans-serif;
+	color: oklch(0.7 0 0);
+}
+
+:root {
+    --primary: #ff6c4f;
+    --primary-gradient: linear-gradient(#ff754f, #ff4f4f);
+}
+
+body {
+    background: oklch(0.17 0 0);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}

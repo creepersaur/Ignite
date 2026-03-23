@@ -1,0 +1,60 @@
+.topbar {
+    padding-inline: 20px;
+    display: block;
+    position: relative;
+    color: white;
+    align-content: center;
+    height: 60px;
+    border-bottom: 1px solid oklch(0.3 0 0);
+}
+
+.topbar .title {
+	position: absolute;
+    top: 0;
+    align-content: center;
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 25px;
+    height: 100%;
+}
+
+.topbar .title .text {
+    text-indent: 36px;
+	color: white;
+}
+
+.topbar .title img {
+    text-indent: 0px;
+    width: 30px;
+    display: inline-block;
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+}
+
+.topbar .navigation {
+	display: flex;
+	gap: 20px;
+	float: right;
+	height: 100%;
+	align-items: center;
+}
+
+.topbar .navigation a[href] {
+	color: oklch(0.9 0 0);
+	text-decoration: none;
+	font-size: 19px;
+	transition: 2s cubic-bezier(0.075, 0.82, 0.165, 1);
+	opacity: 0.5;
+}
+
+.topbar .navigation a[href]:hover {
+	opacity: 1;
+}
+
+.topbar .navigation a[href] img {
+	display: inline-block;
+	width: 30px;
+	translate: 0 2px;
+}
