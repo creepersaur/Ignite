@@ -5,8 +5,10 @@ div.main {
 	height: calc(100vh - 61px);
 	width: 100vw;
 	text-align: center;
+	translate: 0 -20px;
 }
 
 h1 {
 	color: white;
+	font-size: 150px;
 }
