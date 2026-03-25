@@ -6,3 +6,10 @@ edition = "2024"
 [dependencies]
 bincode = "=2.0.1"
 simply_colored = "*"
+
+[profile.release]
+opt-level = 3         # Maximize optimizations (default for release)
+lto = "fat"           # Link-Time Optimization: Cross-crate optimization
+codegen-units = 1     # Slower compile, but better global optimization
+panic = "abort"       # Removes stack unwinding code (smaller/faster)
+strip = true          # Removes symbols and debug info from the binary

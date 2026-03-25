@@ -5,7 +5,7 @@ use crate::{
     virtual_machine::{types::string::TString, value::Value, vm::VM},
 };
 
-pub const BUILTINS: [&str; 3] = ["print", "println", "typeof"];
+pub const BUILTINS: [&str; 4] = ["print", "println", "typeof", "round"];
 
 pub fn builtin_print(vm: &mut VM, arg_count: usize, newline: bool) {
     let args = (0..arg_count).map(|_| vm.pop()).collect::<Vec<_>>();
@@ -30,4 +30,10 @@ pub fn builtin_typeof(vm: &mut VM) {
 
     vm.stack
         .push(Value::String(TString(rc!(RefCell::new(value.get_type())))));
+}
+
+pub fn builtin_round(vm: &mut VM) {
+    let value = vm.pop();
+
+    vm.stack.push(Value::Number(value.as_number().round()));
 }

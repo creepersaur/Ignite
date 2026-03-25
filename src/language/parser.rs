@@ -80,29 +80,6 @@ impl Parser {
             _ => {
                 let expr = self.parse_expression()?;
 
-                // VARIABLE ASSIGNMENT
-                if let Ok(next) = self.current() {
-                    match next.kind {
-                        TokenKind::EQUAL => return self.parse_set_variable(expr),
-                        TokenKind::ADD_SH => {
-                            return self.parse_shorthand_assignment(expr, next.kind);
-                        }
-                        TokenKind::SUB_SH => {
-                            return self.parse_shorthand_assignment(expr, next.kind);
-                        }
-                        TokenKind::MUL_SH => {
-                            return self.parse_shorthand_assignment(expr, next.kind);
-                        }
-                        TokenKind::DIV_SH => {
-                            return self.parse_shorthand_assignment(expr, next.kind);
-                        }
-                        TokenKind::MOD_SH => {
-                            return self.parse_shorthand_assignment(expr, next.kind);
-                        }
-                        _ => {}
-                    }
-                }
-
                 Ok(Node::ExprStmt(Box::new(expr)))
             }
         }
@@ -452,6 +429,28 @@ impl Parser {
         let expr = self.parse_logical()?;
 
         self.skip_new_lines();
+
+        if let Ok(next) = self.current() {
+            match next.kind {
+                TokenKind::EQUAL => return self.parse_set_variable(expr),
+                TokenKind::ADD_SH => {
+                    return self.parse_shorthand_assignment(expr, next.kind);
+                }
+                TokenKind::SUB_SH => {
+                    return self.parse_shorthand_assignment(expr, next.kind);
+                }
+                TokenKind::MUL_SH => {
+                    return self.parse_shorthand_assignment(expr, next.kind);
+                }
+                TokenKind::DIV_SH => {
+                    return self.parse_shorthand_assignment(expr, next.kind);
+                }
+                TokenKind::MOD_SH => {
+                    return self.parse_shorthand_assignment(expr, next.kind);
+                }
+                _ => {}
+            }
+        }
 
         Ok(expr)
     }

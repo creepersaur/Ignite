@@ -567,6 +567,7 @@ impl VM {
                     "print" => builtin_print(self, *arg_count, false),
                     "println" => builtin_print(self, *arg_count, true),
                     "typeof" => builtin_typeof(self),
+					"round" => builtin_round(self),
                     _ => panic!("Unknown built-in: {name}"),
                 },
                 Inst::RETURN => {

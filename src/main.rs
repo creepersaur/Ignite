@@ -1,6 +1,6 @@
 use crate::{
     compiler::compiler::Compiler,
-    language::{lexer::Lexer, parser::Parser},
+    language::{ast::AST, lexer::Lexer, parser::Parser},
     virtual_machine::vm::VM,
 };
 #[allow(unused)]
@@ -36,6 +36,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         nodes.push(parser.parse()?);
     }
 
+    let mut ast = AST::new(nodes);
+    ast.prune_ast();
+    let nodes = ast.nodes;
+
     if args.contains(&"nodes".to_string()) {
         println!("Generated Nodes:");
         println!("---------------------------");
@@ -56,7 +60,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         for i in nodes.iter() {
             compiler.compile_node(i);
         }
-		
+        if args.contains(&"opt".to_string()) {
+            vm.constants = compiler.constants.clone();
+            vm.instructions = compiler.instructions.clone();
+
+            if args.contains(&"inst".to_string()) {
+                println!("\n[Pre-optimization] Compiled instructions:");
+                println!("---------------------------");
+                vm.print_instructions();
+            }
+
+            compiler.optimize();
+        }
+
+        if args.contains(&"no_debug".to_string()) {
+            compiler.finalize_bytecode();
+        }
+
         vm.constants = compiler.constants;
         vm.instructions = compiler.instructions;
     }

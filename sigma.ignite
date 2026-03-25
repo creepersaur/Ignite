@@ -1,10 +1,11 @@
-fn fib(n) {
-	if n <= 1 => return n
-	return fib(n - 1) + fib(n - 2)
+fn binet_fib(n) {
+    let sqrt5 = 2.23606797749979
+    let phi = (1 + sqrt5) / 2
+    
+    let phi_n = 1
+    for i in 0..n => phi_n = phi_n * phi
+    
+    return round(phi_n / sqrt5)
 }
 
-println(fib(1))
-println(fib(2))
-println(fib(3))
-println(fib(4))
-println(fib(5))
+for i in 0..=30 => println(binet_fib(i))
