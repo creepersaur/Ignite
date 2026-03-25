@@ -286,52 +286,77 @@ impl VM {
                 }
 
                 Inst::ADD => {
-                    if let (Value::Number(a), Value::Number(b)) = self.pop_two() {
+                    let (a, b) = &self.pop_two();
+
+                    if let (Value::Number(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::Number(a + b));
+                    } else if let (Value::String(a), Value::String(b)) = (a, b) {
+                        self.stack
+                            .push(Value::String(TString(rc!(RefCell::new(format!(
+                                "{}{}",
+                                a.to_string(),
+                                b.to_string()
+                            ))))));
+                    } else if let (Value::String(a), Value::Char(b)) = (a, b) {
+                        self.stack
+                            .push(Value::String(TString(rc!(RefCell::new(format!(
+                                "{}{}",
+                                a.to_string(),
+                                b
+                            ))))));
+                    } else if let (Value::Char(a), Value::String(b)) = (a, b) {
+                        self.stack
+                            .push(Value::String(TString(rc!(RefCell::new(format!(
+                                "{}{}",
+                                a,
+                                b.to_string()
+                            ))))));
                     } else {
-                        panic!("ADD expects numbers");
+                        panic!("Cannot add {} and {}", a.get_type(), b.get_type());
                     }
                 }
                 Inst::SUB => {
-                    if let (Value::Number(a), Value::Number(b)) = self.pop_two() {
+                    let (a, b) = &self.pop_two();
+
+                    if let (Value::Number(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::Number(a - b));
                     } else {
-                        panic!("SUB expects numbers");
+                        panic!("Cannot subtract {} by {}", a.get_type(), b.get_type());
                     }
                 }
                 Inst::MUL => {
-                    let (a, b) = self.pop_two();
+                    let (a, b) = &self.pop_two();
 
-                    if let (Value::Number(a), Value::Number(b)) = (&a, &b) {
+                    if let (Value::Number(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::Number(a * b));
-                    } else if let (Value::String(a), Value::Number(b)) = (&a, &b) {
+                    } else if let (Value::String(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::String(TString(Rc::new(RefCell::new(
                             a.0.borrow().repeat(*b as usize),
                         )))));
                     } else {
-                        panic!(
-                            "Cannot multiply `{}` with `{}`",
-                            a.to_string(true),
-                            b.to_string(true)
-                        );
+                        panic!("Cannot multiply `{}` with `{}`", a.get_type(), b.get_type());
                     }
                 }
                 Inst::DIV => {
-                    if let (Value::Number(a), Value::Number(b)) = self.pop_two() {
-                        if b == 0.0 {
+                    let (a, b) = &self.pop_two();
+
+                    if let (Value::Number(a), Value::Number(b)) = (a, b) {
+                        if *b == 0.0 {
                             panic!("Cannot divide by Zero");
                         } else {
                             self.stack.push(Value::Number(a / b));
                         }
                     } else {
-                        panic!("DIV expects numbers");
+                        panic!("Cannot divide `{}` by `{}`", a.get_type(), b.get_type());
                     }
                 }
                 Inst::MOD => {
-                    if let (Value::Number(a), Value::Number(b)) = self.pop_two() {
+                    let (a, b) = &self.pop_two();
+
+                    if let (Value::Number(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::Number(a % b));
                     } else {
-                        panic!("MOD expects numbers");
+                        panic!("Cannot MOD `{}` and `{}`", a.get_type(), b.get_type());
                     }
                 }
 
@@ -348,6 +373,7 @@ impl VM {
                     let result = match self.pop_two() {
                         (Value::Number(x), Value::Number(y)) => x == y,
                         (Value::Bool(x), Value::Bool(y)) => x == y,
+                        (Value::Char(x), Value::Char(y)) => x == y,
 
                         (Value::String(x), Value::String(y)) => {
                             Rc::ptr_eq(&x.0, &y.0) || *x.0.borrow() == *y.0.borrow()
@@ -362,6 +388,7 @@ impl VM {
                     let result = match self.pop_two() {
                         (Value::Number(x), Value::Number(y)) => x != y,
                         (Value::Bool(x), Value::Bool(y)) => x != y,
+                        (Value::Char(x), Value::Char(y)) => x != y,
 
                         (Value::String(x), Value::String(y)) => {
                             !Rc::ptr_eq(&x.0, &y.0) || *x.0 != *y.0

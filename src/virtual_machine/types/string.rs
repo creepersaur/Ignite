@@ -19,6 +19,12 @@ pub const STRING_FUNCTIONS: [&str; 13] = [
 #[derive(Debug, Encode, Decode, Clone, PartialEq, PartialOrd)]
 pub struct TString(pub Rc<RefCell<String>>);
 
+impl TString {
+    pub fn to_string(&self) -> String {
+        self.0.borrow().clone()
+    }
+}
+
 // MEMBER ACCESS
 impl IMemberAccessible for TString {
     fn get_member(&self, _vm: &mut VM, member: &Value) -> Value {
@@ -26,9 +32,7 @@ impl IMemberAccessible for TString {
             let len = self.0.borrow().len();
             let target_index = to_index(*index, len);
 
-            return Value::String(TString(rc!(RefCell::new(
-                self.0.borrow()[target_index..target_index + 1].to_string()
-            ))));
+            return Value::Char(self.0.borrow().chars().nth(target_index).unwrap());
         }
 
         if let Value::String(member) = member {

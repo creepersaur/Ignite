@@ -1,5 +1,5 @@
-let my_text = ""
-
-for i in "hello world" {
-	println(i)
-}
+println("hello"[0])
+println("hello"[1])
+println("hello"[2])
+println("hello"[3])
+println("hello"[4])
