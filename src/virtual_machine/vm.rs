@@ -681,7 +681,7 @@ impl VM {
                         let e = end.as_number();
                         let step_val = step.as_number();
 
-                        let current_value = s + (*idx as f32 * step_val);
+                        let current_value = s + (*idx as f64 * step_val);
 
                         let is_within_bounds = if *inclusive {
                             if step_val >= 0.0 {

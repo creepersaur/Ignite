@@ -13,7 +13,7 @@ impl ListLib {
         let list = vm.pop();
 
         if let Value::List(inner) = list {
-            Value::Number(inner.values.borrow().len() as f32)
+            Value::Number(inner.values.borrow().len() as f64)
         } else {
             panic!("Can only use list.len on Lists");
         }
@@ -163,7 +163,7 @@ impl ListLib {
 
         if let Value::List(inner) = list {
             let count = inner.values.borrow().iter().filter(|x| x == &&item).count();
-            Value::Number(count as f32)
+            Value::Number(count as f64)
         } else {
             panic!("Can only use list.count on Lists");
         }

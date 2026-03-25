@@ -24,7 +24,7 @@ impl TupleLib {
         let tuple = vm.pop();
 
         if let Value::Tuple(inner) = tuple {
-            Value::Number(inner.values.borrow().len() as f32)
+            Value::Number(inner.values.borrow().len() as f64)
         } else {
             panic!("Can only use tuple.len on Tuples");
         }
@@ -96,7 +96,7 @@ impl TupleLib {
 
         if let Value::Tuple(inner) = tuple {
             let count = inner.values.borrow().iter().filter(|x| x == &&item).count();
-            Value::Number(count as f32)
+            Value::Number(count as f64)
         } else {
             panic!("Can only use tuple.count on Tuples");
         }

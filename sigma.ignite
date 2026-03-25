@@ -1,6 +1,6 @@
 fn binet_fib(n) {
-    let sqrt5 = 2.23606797749979
-    let phi = (1 + sqrt5) / 2
+    const sqrt5 = 2.2360679775
+    const phi = 1.6180339888
     
     let phi_n = 1
     for i in 0..n => phi_n = phi_n * phi

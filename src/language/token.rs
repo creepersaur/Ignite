@@ -35,7 +35,7 @@ pub enum TokenKind {
     // LITERALS
     NIL,
     IntLiteral(i32),
-    NumberLiteral(f32),
+    NumberLiteral(f64),
     StringLiteral(String),
     BooleanLiteral(bool),
 

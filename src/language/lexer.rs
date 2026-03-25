@@ -228,7 +228,7 @@ impl Lexer {
     }
 
     pub fn identify_other(text: &str) -> TokenKind {
-        if let Ok(x) = text.parse::<f32>() {
+        if let Ok(x) = text.parse::<f64>() {
             return NumberLiteral(x);
         } else if let Ok(x) = text.parse::<bool>() {
             return BooleanLiteral(x);

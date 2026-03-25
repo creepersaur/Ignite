@@ -12,7 +12,7 @@ pub enum Node {
     NIL,
     Variable(Rc<String>),
 
-    NumberLiteral(f32),
+    NumberLiteral(f64),
     StringLiteral(String),
     BooleanLiteral(bool),
 

@@ -1,4 +1,4 @@
-// return Value::Number(self.values.borrow().len() as f32)
+// return Value::Number(self.values.borrow().len() as f64)
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -19,7 +19,7 @@ impl DictLib {
         let dict = vm.pop();
 
         if let Value::Dict(inner) = dict {
-            Value::Number(inner.values.borrow().len() as f32)
+            Value::Number(inner.values.borrow().len() as f64)
         } else {
             panic!("Can only use dict.len on Dicts");
         }
@@ -212,7 +212,7 @@ impl DictLib {
                 .iter()
                 .filter(|(_, x)| x == &&item)
                 .count();
-            Value::Number(count as f32)
+            Value::Number(count as f64)
         } else {
             panic!("Can only use dict.count on Dicts");
         }

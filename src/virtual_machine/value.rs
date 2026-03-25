@@ -12,7 +12,7 @@ use crate::virtual_machine::types::{
 #[derive(Encode, Decode, Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value {
     NIL,
-    Number(f32),
+    Number(f64),
     Bool(bool),
     Char(char),
     String(TString),
@@ -159,7 +159,7 @@ impl Value {
         }
     }
 
-    pub fn as_number(&self) -> f32 {
+    pub fn as_number(&self) -> f64 {
         if let Value::Number(x) = self {
             *x
         } else {

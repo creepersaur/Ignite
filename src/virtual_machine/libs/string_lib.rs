@@ -18,7 +18,7 @@ impl StringLib {
         let string = vm.pop();
 
         if let Value::String(inner) = string {
-            Value::Number(inner.0.borrow().len() as f32)
+            Value::Number(inner.0.borrow().len() as f64)
         } else {
             panic!("Can only use string.len on strings");
         }
@@ -138,7 +138,7 @@ impl StringLib {
 
         if let Value::String(inner) = string {
             let count = inner.0.borrow().matches(&*item.to_string(false)).count();
-            Value::Number(count as f32)
+            Value::Number(count as f64)
         } else {
             panic!("Can only use string.count on strings");
         }
@@ -213,7 +213,7 @@ impl StringLib {
                     .0
                     .borrow()
                     .bytes()
-                    .map(|x| Value::Number(x as f32))
+                    .map(|x| Value::Number(x as f64))
                     .collect::<Vec<_>>()
             ))));
         } else {
