@@ -1,0 +1,6 @@
+const separators = "!@#"
+const text = "hello!world@this_is#cool"
+
+for i in separators {
+	println(text.split(i))
+}

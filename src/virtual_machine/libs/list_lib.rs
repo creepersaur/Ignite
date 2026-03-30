@@ -6,6 +6,11 @@ use crate::{
     virtual_machine::{libs::lib::Library, types::list::TList, value::Value, vm::VM},
 };
 
+pub const LIST_FUNCTIONS: [&str; 16] = [
+    "len", "push", "insert", "remove", "map", "pop", "clear", "append", "concat", "copy", "count",
+    "sort", "reverse", "fill", "rep", "push_n",
+];
+
 pub struct ListLib;
 
 impl ListLib {

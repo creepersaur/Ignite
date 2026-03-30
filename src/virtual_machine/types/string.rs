@@ -5,21 +5,19 @@ use crate::{
     misc::to_index::to_index,
     rc,
     virtual_machine::{
-        traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value,
-        vm::VM,
+        libs::string_lib::STRING_FUNCTIONS, traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value, vm::VM
     },
 };
 use bincode::{Decode, Encode};
-
-pub const STRING_FUNCTIONS: [&str; 15] = [
-    "len", "push", "insert", "remove", "pop", "clear", "concat", "copy", "count", "reverse",
-    "fill", "rep", "push_n", "chars", "bytes"
-];
 
 #[derive(Encode, Decode, Clone, PartialEq, PartialOrd)]
 pub struct TString(pub Rc<RefCell<String>>);
 
 impl TString {
+	pub fn new(s: String) -> Self {
+		Self(rc!(RefCell::new(s)))
+	}
+
     pub fn to_string(&self) -> String {
         self.0.borrow().clone()
     }

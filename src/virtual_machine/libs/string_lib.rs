@@ -11,6 +11,11 @@ use crate::{
     },
 };
 
+pub const STRING_FUNCTIONS: [&str; 16] = [
+    "len", "push", "insert", "remove", "pop", "clear", "concat", "copy", "count", "reverse",
+    "fill", "rep", "push_n", "chars", "bytes", "split",
+];
+
 pub struct StringLib;
 
 impl StringLib {
@@ -237,6 +242,46 @@ impl StringLib {
             panic!("Can only use string.chars on strings");
         }
     }
+
+    fn split(vm: &mut VM) -> Value {
+        let string = vm.pop();
+        let new_value = vm.pop_or_nil();
+
+        if let Value::String(inner) = string {
+            if let Value::String(value) = new_value {
+                Value::List(TList::new(rc!(RefCell::new(
+                    inner
+                        .0
+                        .borrow_mut()
+                        .split(&*value.0.borrow())
+                        .map(|x: &str| Value::String(TString::new(x.to_string())))
+                        .collect::<Vec<_>>()
+                ))))
+            } else if let Value::Char(c) = new_value {
+                Value::List(TList::new(rc!(RefCell::new(
+                    inner
+                        .0
+                        .borrow_mut()
+                        .split(c)
+                        .map(|x: &str| Value::String(TString::new(x.to_string())))
+                        .collect::<Vec<_>>()
+                ))))
+            } else if Value::NIL == new_value {
+                Value::List(TList::new(rc!(RefCell::new(
+                    inner
+                        .0
+                        .borrow_mut()
+                        .split(" ")
+                        .map(|x: &str| Value::String(TString::new(x.to_string())))
+                        .collect::<Vec<_>>()
+                ))))
+            } else {
+                panic!("Can only split() a string value with a string separator")
+            }
+        } else {
+            panic!("Can only use string.split on strings")
+        }
+    }
 }
 
 // LIBRARY
@@ -262,6 +307,7 @@ impl Library for StringLib {
             "push_n" => return Box::new(Self::push_n),
             "bytes" => return Box::new(Self::bytes),
             "chars" => return Box::new(Self::chars),
+            "split" => return Box::new(Self::split),
 
             _ => panic!("Unknown function `{name}` on lib {}", self.get_name()),
         }

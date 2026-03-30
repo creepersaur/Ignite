@@ -15,7 +15,7 @@ mod virtual_machine;
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<_> = std::env::args().collect();
 
-    let text = fs::read_to_string("sigma.ignite")?;
+    let text = fs::read_to_string("sigma.ign")?;
     let mut lex = Lexer::new(&text);
     let tokens = lex.get_tokens();
 

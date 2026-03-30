@@ -256,6 +256,7 @@ impl Parser {
             TokenKind::BREAK => self.parse_break(),
             TokenKind::CONTINUE => self.simple_parse_keyword(Node::ContinueStatement),
             TokenKind::IF => self.parse_if(),
+            TokenKind::MATCH => self.parse_match(),
 
             other => Err(format!(
                 "Got unexpected token `{other:?}` while parsing primary."
@@ -378,7 +379,8 @@ impl Parser {
                 ));
             }
 
-            let key_base = self.parse_expression()?;
+            // USE PARSE_LOGICAL BECAUSE PARSE_EXPRESSION IS TOO HIGH LEVEL
+            let key_base = self.parse_logical()?;
             self.skip_new_lines();
 
             let (key, value) = if let Ok(next) = self.current()
@@ -1076,5 +1078,54 @@ impl Parser {
         }
 
         return Ok(left);
+    }
+
+    fn parse_match(&mut self) -> NodeResult {
+        self.advance()?;
+
+        let expr = self.parse_expression()?;
+
+        let mut branches = vec![];
+
+        self.skip_new_lines();
+        self.expect_and_consume(TokenKind::LBRACE)?;
+
+        loop {
+            self.skip_new_lines();
+
+            if let Ok(next) = self.current() {
+                if next.kind == TokenKind::RBRACE {
+                    break;
+                }
+            } else {
+                return Err(format!(
+                    "Unexpected end of input while parsing match branches."
+                ));
+            }
+
+            let condition = self.parse_expression()?;
+            self.skip_new_lines();
+            self.expect_and_consume(TokenKind::FATARROW);
+
+            let value = self.parse_expression()?;
+
+            branches.push((condition, value));
+
+            self.skip_new_lines();
+            if let Ok(next) = self.current()
+                && next.kind == TokenKind::COMMA
+            {
+                self.advance()?;
+            } else {
+                break;
+            }
+        }
+
+        self.expect_and_consume(TokenKind::RBRACE)?;
+
+        Ok(Node::MatchStatement {
+            expr: Box::new(expr),
+            branches,
+        })
     }
 }

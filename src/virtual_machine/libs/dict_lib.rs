@@ -12,6 +12,11 @@ use crate::{
     },
 };
 
+pub const DICT_FUNCTIONS: [&str; 11] = [
+    "len", "items", "keys", "values", "get", "insert", "remove", "clear", "append", "concat",
+    "count",
+];
+
 pub struct DictLib;
 
 impl DictLib {

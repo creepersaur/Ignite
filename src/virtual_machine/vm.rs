@@ -69,6 +69,11 @@ impl VM {
     }
 
     #[inline]
+    pub fn pop_or_nil(&mut self) -> Value {
+        return self.stack.pop().unwrap_or(Value::NIL);
+    }
+
+    #[inline]
     pub fn pop_two(&mut self) -> (Value, Value) {
         let right = self
             .stack
@@ -387,6 +392,7 @@ impl VM {
 
                 Inst::EQ => {
                     let result = match self.pop_two() {
+                        (Value::NIL, Value::NIL) => true,
                         (Value::Number(x), Value::Number(y)) => x == y,
                         (Value::Bool(x), Value::Bool(y)) => x == y,
                         (Value::Char(x), Value::Char(y)) => x == y,
@@ -395,13 +401,17 @@ impl VM {
                             Rc::ptr_eq(&x.0, &y.0) || *x.0.borrow() == *y.0.borrow()
                         }
 
-                        _ => false,
+                        (Value::Char(x), Value::String(y)) => x.to_string() == *y.0.borrow(),
+                        (Value::String(y), Value::Char(x)) => x.to_string() == *y.0.borrow(),
+
+                        (a, b) => a == b,
                     };
 
                     self.stack.push(Value::Bool(result));
                 }
                 Inst::NEQ => {
                     let result = match self.pop_two() {
+                        (Value::NIL, Value::NIL) => true,
                         (Value::Number(x), Value::Number(y)) => x != y,
                         (Value::Bool(x), Value::Bool(y)) => x != y,
                         (Value::Char(x), Value::Char(y)) => x != y,
@@ -410,7 +420,10 @@ impl VM {
                             !Rc::ptr_eq(&x.0, &y.0) || *x.0 != *y.0
                         }
 
-                        _ => panic!("Cannot NEQ"),
+                        (Value::Char(x), Value::String(y)) => x.to_string() == *y.0.borrow(),
+                        (Value::String(y), Value::Char(x)) => x.to_string() == *y.0.borrow(),
+
+                        (a, b) => a != b,
                     };
 
                     self.stack.push(Value::Bool(result));
@@ -577,6 +590,13 @@ impl VM {
                     "println" => builtin_print(self, *arg_count, true),
                     "typeof" => builtin_typeof(self),
                     "round" => builtin_round(self),
+
+					// types
+                    "string" => builtin_string(self),
+                    "number" => builtin_number(self),
+                    "bool" => builtin_bool(self),
+                    "char" => builtin_char(self),
+
                     _ => panic!("Unknown built-in: {name}"),
                 },
                 Inst::RETURN => {
@@ -718,6 +738,26 @@ impl VM {
                     } else {
                         panic!("Cannot iterate over {value:?}");
                     }
+                }
+
+                Inst::MATCH => {
+                    let result = match self.pop_two() {
+                        (Value::NIL, Value::NIL) => true,
+                        (Value::Number(x), Value::Number(y)) => x == y,
+                        (Value::Bool(x), Value::Bool(y)) => x == y,
+                        (Value::Char(x), Value::Char(y)) => x == y,
+
+                        (Value::String(x), Value::String(y)) => {
+                            Rc::ptr_eq(&x.0, &y.0) || *x.0.borrow() == *y.0.borrow()
+                        }
+
+                        (Value::Char(x), Value::String(y)) => x.to_string() == *y.0.borrow(),
+                        (Value::String(y), Value::Char(x)) => x.to_string() == *y.0.borrow(),
+
+                        (a, b) => a == b,
+                    };
+
+                    self.stack.push(Value::Bool(result));
                 }
 
                 _ => panic!("Unimplemented instruction: {current:?}"),

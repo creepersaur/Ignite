@@ -125,6 +125,8 @@ impl Compiler {
                 block,
             } => self.compile_for(var_name, expr, block),
 
+            Node::MatchStatement { expr, branches } => self.compile_match(expr, branches),
+
             _ => panic!("Unknown node: `{node:?}`"),
         }
     }
@@ -576,6 +578,30 @@ impl Compiler {
             self.instructions.push(Inst::PUSH(Value::NIL));
         }
         let _ = patch!(self.instructions, "break");
+    }
+
+    pub fn compile_match(&mut self, expr: &Box<Node>, branches: &Vec<(Node, Node)>) {
+        self.compile_node(expr);
+
+        for (idx, (condition, value)) in branches.iter().enumerate() {
+            if idx <= branches.len() {
+                self.instructions.push(Inst::DUP);
+            }
+            self.compile_node(condition);
+            self.instructions.push(Inst::MATCH);
+
+            let jump_if_false = patch!(self.instructions);
+
+            self.compile_node(value);
+
+            patch_execute!(
+                self.instructions,
+                jump_if_false,
+                Inst::JUMP_IF_FALSE(self.instructions.len())
+            );
+        }
+
+        self.instructions.push(Inst::DEFAULT_NIL);
     }
 }
 

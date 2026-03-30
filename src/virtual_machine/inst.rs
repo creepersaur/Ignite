@@ -72,4 +72,7 @@ pub enum Inst {
     // Get iterator (for loop)
     GET_ITER,        // ✅
     FOR_ITER(usize), // ✅
+
+    // Match statement
+    MATCH,
 }

@@ -129,4 +129,9 @@ pub enum Node {
         let_statements: Vec<Node>,
         functions: Vec<Node>,
     },
+
+    MatchStatement {
+        expr: Box<Node>,
+        branches: Vec<(Node, Node)>,
+    },
 }

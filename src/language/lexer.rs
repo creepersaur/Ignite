@@ -9,7 +9,7 @@ use crate::language::token::{
 const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?=\n";
 const DOUBLE: [&str; 18] = [
     "->", "||", "&&", "<=", ">=", "==", "!=", "=>", "::", "..", "++", "--", "+=", "-=", "*=", "/=",
-    "%=", "^="
+    "%=", "^=",
 ];
 
 #[derive(Debug)]
@@ -170,6 +170,7 @@ impl Lexer {
             "if" => IF,
             "else" => ELSE,
             "class" => CLASS,
+            "match" => MATCH,
             // "struct" => STRUCT,
             // "interface" => INTERFACE,
 

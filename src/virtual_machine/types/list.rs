@@ -5,20 +5,12 @@ use crate::{
     misc::to_index::to_index,
     rc,
     virtual_machine::{
+        libs::list_lib::LIST_FUNCTIONS, libs::tuple_lib::TUPLE_FUNCTIONS,
         traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value,
         vm::VM,
     },
 };
 use bincode::{Decode, Encode};
-
-pub const LIST_FUNCTIONS: [&str; 16] = [
-    "len", "push", "insert", "remove", "map", "pop", "clear", "append", "concat", "copy", "count",
-    "sort", "reverse", "fill", "rep", "push_n",
-];
-
-pub const TUPLE_FUNCTIONS: [&str; 10] = [
-    "len", "insert", "map", "concat", "copy", "count", "sort", "reverse", "rep", "to_list",
-];
 
 #[derive(Encode, Decode, Clone, PartialEq, PartialOrd)]
 pub struct TList {

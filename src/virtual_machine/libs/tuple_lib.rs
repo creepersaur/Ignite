@@ -5,6 +5,10 @@ use crate::{
     virtual_machine::{libs::lib::Library, types::list::TList, value::Value, vm::VM},
 };
 
+pub const TUPLE_FUNCTIONS: [&str; 10] = [
+    "len", "insert", "map", "concat", "copy", "count", "sort", "reverse", "rep", "to_list",
+];
+
 pub struct TupleLib;
 
 impl TupleLib {

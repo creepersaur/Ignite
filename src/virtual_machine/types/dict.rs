@@ -3,8 +3,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 use crate::{
     lib_function, rc,
     virtual_machine::{
-        traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value,
-        vm::VM,
+        libs::dict_lib::DICT_FUNCTIONS, traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value, vm::VM
     },
 };
 use bincode::{Decode, Encode};
@@ -37,12 +36,7 @@ impl Debug for TDict {
 impl IMemberAccessible for TDict {
     fn get_member(&self, _vm: &mut VM, member: &Value) -> Value {
         if let Value::String(member) = member {
-            let functions = [
-                "len", "items", "keys", "values", "get", "insert", "remove", "clear", "append",
-                "concat", "count",
-            ];
-
-            if functions.contains(&member.0.borrow().as_str()) {
+            if DICT_FUNCTIONS.contains(&member.0.borrow().as_str()) {
                 return lib_function!(self, "dict", member.0, 1, Value::Dict);
             }
         }
