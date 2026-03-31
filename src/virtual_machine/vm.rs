@@ -5,7 +5,7 @@ use crate::{
         chunk::Chunk,
         inst::Inst,
         libs::{
-            dict_lib::DictLib, lib::Library, list_lib::ListLib, math_lib::MathLib,
+            dict_lib::DictLib, io_lib::IOLib, lib::Library, list_lib::ListLib, math_lib::MathLib,
             string_lib::StringLib, tuple_lib::TupleLib,
         },
         namespaces::standard_namespace::load_standard_namespace,
@@ -14,7 +14,6 @@ use crate::{
         value::Value,
     },
 };
-use bincode::config;
 use simply_colored::*;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -37,13 +36,6 @@ pub struct VM {
 #[allow(unused)]
 impl VM {
     pub fn new() -> Self {
-        let mut libs: HashMap<_, Box<dyn Library>> = HashMap::new();
-        libs.insert(hash_u64!("string"), Box::new(StringLib));
-        libs.insert(hash_u64!("list"), Box::new(ListLib));
-        libs.insert(hash_u64!("tuple"), Box::new(TupleLib));
-        libs.insert(hash_u64!("dict"), Box::new(DictLib));
-        libs.insert(hash_u64!("math"), Box::new(MathLib));
-
         let mut globals = HashMap::new();
         globals.insert(hash_u64!("Std"), (load_standard_namespace(), true));
 
@@ -56,10 +48,26 @@ impl VM {
             constants: Vec::with_capacity(100),
             globals,
             locals: vec![HashMap::new()],
-            libraries: libs,
+            libraries: Self::initialize_libs(),
             iterators: vec![],
             intern_table: HashMap::new(),
         }
+    }
+
+    pub fn initialize_libs() -> HashMap<u64, Box<dyn Library>> {
+        let mut libs: HashMap<_, Box<dyn Library>> = HashMap::new();
+
+        // types
+        libs.insert(hash_u64!("string"), Box::new(StringLib));
+        libs.insert(hash_u64!("list"), Box::new(ListLib));
+        libs.insert(hash_u64!("tuple"), Box::new(TupleLib));
+        libs.insert(hash_u64!("dict"), Box::new(DictLib));
+
+        // namespaces
+        libs.insert(hash_u64!("math"), Box::new(MathLib));
+        libs.insert(hash_u64!("io"), Box::new(IOLib));
+
+        libs
     }
 
     pub fn advance(&mut self) {
@@ -224,8 +232,8 @@ impl VM {
     pub fn read_bytecode_file(&mut self, path: &str) {
         let bytecode_file = std::fs::read(path).unwrap();
 
-        let decoded: (Chunk, _) =
-            bincode::decode_from_slice(&bytecode_file, config::standard()).unwrap();
+        let mut config = bincode::config::standard().with_variable_int_encoding();
+        let decoded: (Chunk, _) = bincode::decode_from_slice(&bytecode_file, config).unwrap();
 
         self.constants = decoded.0.constants;
         self.instructions = decoded.0.instructions;
@@ -233,7 +241,8 @@ impl VM {
 
     pub fn write_bytecode_file(&mut self, path: &str) {
         let chunk = Chunk::new(self.constants.clone(), self.instructions.clone());
-        let encoded = bincode::encode_to_vec(chunk, config::standard()).unwrap();
+        let mut config = bincode::config::standard().with_variable_int_encoding();
+        let encoded = bincode::encode_to_vec(chunk, config).unwrap();
 
         std::fs::write(path, encoded).unwrap();
     }
@@ -322,26 +331,23 @@ impl VM {
                     if let (Value::Number(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::Number(a + b));
                     } else if let (Value::String(a), Value::String(b)) = (a, b) {
-                        self.stack
-                            .push(Value::String(TString::new(format!(
-                                "{}{}",
-                                a.to_string(),
-                                b.to_string()
-                            ))));
+                        self.stack.push(Value::String(TString::new(format!(
+                            "{}{}",
+                            a.to_string(),
+                            b.to_string()
+                        ))));
                     } else if let (Value::String(a), Value::Char(b)) = (a, b) {
-                        self.stack
-                            .push(Value::String(TString::new(format!(
-                                "{}{}",
-                                a.to_string(),
-                                b
-                            ))));
+                        self.stack.push(Value::String(TString::new(format!(
+                            "{}{}",
+                            a.to_string(),
+                            b
+                        ))));
                     } else if let (Value::Char(a), Value::String(b)) = (a, b) {
-                        self.stack
-                            .push(Value::String(TString::new(format!(
-                                "{}{}",
-                                a,
-                                b.to_string()
-                            ))));
+                        self.stack.push(Value::String(TString::new(format!(
+                            "{}{}",
+                            a,
+                            b.to_string()
+                        ))));
                     } else {
                         panic!("Cannot add {} and {}", a.get_type(), b.get_type());
                     }
@@ -361,9 +367,8 @@ impl VM {
                     if let (Value::Number(a), Value::Number(b)) = (a, b) {
                         self.stack.push(Value::Number(a * b));
                     } else if let (Value::String(a), Value::Number(b)) = (a, b) {
-                        self.stack.push(Value::String(TString::new(
-                            a.0.repeat(*b as usize),
-                        )));
+                        self.stack
+                            .push(Value::String(TString::new(a.0.repeat(*b as usize))));
                     } else {
                         panic!("Cannot multiply `{}` with `{}`", a.get_type(), b.get_type());
                     }
@@ -700,8 +705,7 @@ impl VM {
                     let value = self.pop();
 
                     if let Value::String(s) = &value {
-                        let chars: Vec<Value> =
-                            s.0.chars().map(|c| Value::Char(c)).collect();
+                        let chars: Vec<Value> = s.0.chars().map(|c| Value::Char(c)).collect();
                         self.iterators
                             .push((Value::List(TList::new_tuple(rc!(RefCell::new(chars)))), 0)); // or a dedicated variant
                     } else {

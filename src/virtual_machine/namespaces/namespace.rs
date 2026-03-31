@@ -8,7 +8,7 @@ use std::{
 
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct TNamespace {
-    pub name: String,
+    pub name: Rc<str>,
     pub locked: bool,
     pub env: HashMap<Rc<str>, (Value, bool)>,
 }
@@ -16,7 +16,7 @@ pub struct TNamespace {
 impl TNamespace {
     pub fn new(name: &str, locked: bool) -> Self {
         Self {
-            name: name.to_string(),
+            name: Rc::from(name),
             locked,
             env: HashMap::new(),
         }

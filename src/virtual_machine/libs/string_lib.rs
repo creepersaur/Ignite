@@ -1,6 +1,5 @@
 use crate::{
-    hash_u64,
-    rc,
+    hash_u64, rc,
     virtual_machine::{
         libs::lib::Library,
         types::{list::TList, string::TString},
@@ -10,9 +9,37 @@ use crate::{
 };
 use std::cell::RefCell;
 
-pub const STRING_FUNCTIONS: [&str; 9] = [
-    "len", "concat", "copy", "count", "reverse",
-    "rep", "chars", "bytes", "split",
+pub const STRING_FUNCTIONS: [&str; 30] = [
+    "len",
+    "concat",
+    "copy",
+    "count",
+    "reverse",
+    "rep",
+    "chars",
+    "bytes",
+    "split",
+    "upper",
+    "lower",
+    "trim",
+    "ltrim",
+    "rtrim",
+    "replace",
+    "starts_with",
+    "ends_with",
+    "find",
+    "title",
+    "center",
+    "ljust",
+    "rjust",
+    "is_upper",
+    "is_lower",
+    "is_numeric",
+    "is_alphanumeric",
+    "is_alpha",
+    "is_ascii",
+    "is_empty",
+    "is_whitespace",
 ];
 
 pub struct StringLib;
@@ -125,7 +152,7 @@ impl StringLib {
                     inner
                         .0
                         .split(&*value.0)
-                        .map(|x: &str| Value::String(TString::new(x.to_string())))
+                        .map(|x: &str| Value::String(TString::from_str(x)))
                         .collect::<Vec<_>>()
                 ))))
             } else if let Value::Char(c) = new_value {
@@ -133,7 +160,7 @@ impl StringLib {
                     inner
                         .0
                         .split(c)
-                        .map(|x: &str| Value::String(TString::new(x.to_string())))
+                        .map(|x: &str| Value::String(TString::from_str(x)))
                         .collect::<Vec<_>>()
                 ))))
             } else if Value::NIL == new_value {
@@ -141,7 +168,7 @@ impl StringLib {
                     inner
                         .0
                         .split(" ")
-                        .map(|x: &str| Value::String(TString::new(x.to_string())))
+                        .map(|x: &str| Value::String(TString::from_str(x)))
                         .collect::<Vec<_>>()
                 ))))
             } else {
@@ -149,6 +176,334 @@ impl StringLib {
             }
         } else {
             panic!("Can only use string.split on strings")
+        }
+    }
+
+    fn upper(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::String(TString::new(inner.0.to_uppercase()))
+        } else {
+            panic!("Can only use string.upper on strings");
+        }
+    }
+
+    fn lower(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::String(TString::new(inner.0.to_lowercase()))
+        } else {
+            panic!("Can only use string.lower on strings");
+        }
+    }
+
+    // --- Trim ---
+
+    fn trim(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::String(TString::new(inner.0.trim().to_string()))
+        } else {
+            panic!("Can only use string.trim on strings");
+        }
+    }
+
+    fn ltrim(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::String(TString::new(inner.0.trim_start().to_string()))
+        } else {
+            panic!("Can only use string.ltrim on strings");
+        }
+    }
+
+    fn rtrim(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::String(TString::new(inner.0.trim_end().to_string()))
+        } else {
+            panic!("Can only use string.rtrim on strings");
+        }
+    }
+
+    // --- Search & Replace ---
+
+    /// replace(old, new) -> string
+    fn replace(vm: &mut VM) -> Value {
+        let new_val = vm.pop();
+        let old_val = vm.pop();
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let old = old_val.to_string(false);
+            let new = new_val.to_string(false);
+            Value::String(TString::new(inner.0.replace(&*old, &new)))
+        } else {
+            panic!("Can only use string.replace on strings");
+        }
+    }
+
+    /// find(sub) -> number (index) or nil if not found
+    fn find(vm: &mut VM) -> Value {
+        let (sub, string) = vm.pop_two();
+
+        if let Value::String(inner) = string {
+            let needle = sub.to_string(false);
+            match inner.0.find(&*needle) {
+                Some(idx) => Value::Number(idx as f64),
+                None => Value::NIL,
+            }
+        } else {
+            panic!("Can only use string.find on strings");
+        }
+    }
+
+    /// starts_with(prefix) -> bool
+    fn starts_with(vm: &mut VM) -> Value {
+        let (prefix, string) = vm.pop_two();
+
+        if let Value::String(inner) = string {
+            let p = prefix.to_string(false);
+            Value::Bool(inner.0.starts_with(&*p))
+        } else {
+            panic!("Can only use string.starts_with on strings");
+        }
+    }
+
+    /// ends_with(suffix) -> bool
+    fn ends_with(vm: &mut VM) -> Value {
+        let (suffix, string) = vm.pop_two();
+
+        if let Value::String(inner) = string {
+            let s = suffix.to_string(false);
+            Value::Bool(inner.0.ends_with(&*s))
+        } else {
+            panic!("Can only use string.ends_with on strings");
+        }
+    }
+
+    // --- Case Conversion ---
+
+    /// title() -> string  (Title Case Every Word)
+    fn title(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let titled = inner
+                .0
+                .split_whitespace()
+                .map(|word| {
+                    let mut chars = word.chars();
+                    match chars.next() {
+                        None => String::new(),
+                        Some(first) => {
+                            first.to_uppercase().collect::<String>()
+                                + &chars.as_str().to_lowercase()
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            Value::String(TString::new(titled))
+        } else {
+            panic!("Can only use string.title on strings");
+        }
+    }
+
+    // --- Padding / Alignment ---
+
+    /// center(width) or center(width, fill_char) -> string
+    fn center(vm: &mut VM) -> Value {
+        let width_val = vm.pop();
+        let fill_val = vm.pop_or_nil();
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let width = if let Value::Number(n) = width_val {
+                n as usize
+            } else {
+                panic!("string.center: width must be a number");
+            };
+
+            let fill = match fill_val {
+                Value::Char(c) => c,
+                Value::NIL => ' ',
+                _ => panic!("string.center: fill must be a char or nil"),
+            };
+
+            let len = inner.0.chars().count();
+            if len >= width {
+                return Value::String(inner.clone());
+            }
+            let total_pad = width - len;
+            let left_pad = total_pad / 2;
+            let right_pad = total_pad - left_pad;
+            let result = format!(
+                "{}{}{}",
+                fill.to_string().repeat(left_pad),
+                inner.0,
+                fill.to_string().repeat(right_pad)
+            );
+            Value::String(TString::new(result))
+        } else {
+            panic!("Can only use string.center on strings");
+        }
+    }
+
+    /// ljust(width) or ljust(width, fill_char) -> string
+    fn ljust(vm: &mut VM) -> Value {
+        let width_val = vm.pop();
+        let fill_val = vm.pop_or_nil();
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let width = if let Value::Number(n) = width_val {
+                n as usize
+            } else {
+                panic!("string.ljust: width must be a number");
+            };
+
+            let fill = match fill_val {
+                Value::Char(c) => c,
+                Value::NIL => ' ',
+                _ => panic!("string.ljust: fill must be a char or nil"),
+            };
+
+            let len = inner.0.chars().count();
+            if len >= width {
+                return Value::String(inner.clone());
+            }
+            let result = format!("{}{}", inner.0, fill.to_string().repeat(width - len));
+            Value::String(TString::new(result))
+        } else {
+            panic!("Can only use string.ljust on strings");
+        }
+    }
+
+    /// rjust(width) or rjust(width, fill_char) -> string
+    fn rjust(vm: &mut VM) -> Value {
+        let width_val = vm.pop();
+        let fill_val = vm.pop_or_nil();
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let width = if let Value::Number(n) = width_val {
+                n as usize
+            } else {
+                panic!("string.rjust: width must be a number");
+            };
+
+            let fill = match fill_val {
+                Value::Char(c) => c,
+                Value::NIL => ' ',
+                _ => panic!("string.rjust: fill must be a char or nil"),
+            };
+
+            let len = inner.0.chars().count();
+            if len >= width {
+                return Value::String(inner.clone());
+            }
+            let result = format!("{}{}", fill.to_string().repeat(width - len), inner.0);
+            Value::String(TString::new(result))
+        } else {
+            panic!("Can only use string.rjust on strings");
+        }
+    }
+
+    // --- Predicate / is_* ---
+
+    /// is_upper() -> bool  (non-empty and all cased chars are uppercase)
+    fn is_upper(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let has_cased = inner.0.chars().any(|c| c.is_alphabetic());
+            Value::Bool(has_cased && inner.0.chars().all(|c| !c.is_lowercase()))
+        } else {
+            panic!("Can only use string.is_upper on strings");
+        }
+    }
+
+    /// is_lower() -> bool  (non-empty and all cased chars are lowercase)
+    fn is_lower(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            let has_cased = inner.0.chars().any(|c| c.is_alphabetic());
+            Value::Bool(has_cased && inner.0.chars().all(|c| !c.is_uppercase()))
+        } else {
+            panic!("Can only use string.is_lower on strings");
+        }
+    }
+
+    /// is_numeric() -> bool  (all chars are numeric / digit)
+    fn is_numeric(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::Bool(!inner.0.is_empty() && inner.0.chars().all(|c| c.is_numeric()))
+        } else {
+            panic!("Can only use string.is_numeric on strings");
+        }
+    }
+
+    /// is_alphanumeric() -> bool
+    fn is_alphanumeric(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::Bool(!inner.0.is_empty() && inner.0.chars().all(|c| c.is_alphanumeric()))
+        } else {
+            panic!("Can only use string.is_alphanumeric on strings");
+        }
+    }
+
+    /// is_alpha() -> bool  (all chars are alphabetic)
+    fn is_alpha(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::Bool(!inner.0.is_empty() && inner.0.chars().all(|c| c.is_alphabetic()))
+        } else {
+            panic!("Can only use string.is_alpha on strings");
+        }
+    }
+
+    /// is_ascii() -> bool  (all chars are ASCII)
+    fn is_ascii(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::Bool(inner.0.is_ascii())
+        } else {
+            panic!("Can only use string.is_ascii on strings");
+        }
+    }
+
+    /// is_empty() -> bool
+    fn is_empty(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::Bool(inner.0.is_empty())
+        } else {
+            panic!("Can only use string.is_empty on strings");
+        }
+    }
+
+    /// is_whitespace() -> bool  (non-empty and all chars are whitespace)
+    fn is_whitespace(vm: &mut VM) -> Value {
+        let string = vm.pop();
+
+        if let Value::String(inner) = string {
+            Value::Bool(!inner.0.is_empty() && inner.0.chars().all(|c| c.is_whitespace()))
+        } else {
+            panic!("Can only use string.is_whitespace on strings");
         }
     }
 }
@@ -161,15 +516,42 @@ impl Library for StringLib {
 
     fn get_function(&self, name: u64) -> Box<dyn Fn(&mut VM) -> Value> {
         match name {
-            x if x == hash_u64!("len") => return Box::new(Self::len),
-            x if x == hash_u64!("concat") => return Box::new(Self::concat),
-            x if x == hash_u64!("copy") => return Box::new(Self::copy),
-            x if x == hash_u64!("count") => return Box::new(Self::count),
-            x if x == hash_u64!("reverse") => return Box::new(Self::reverse),
-            x if x == hash_u64!("rep") => return Box::new(Self::rep),
-            x if x == hash_u64!("bytes") => return Box::new(Self::bytes),
-            x if x == hash_u64!("chars") => return Box::new(Self::chars),
-            x if x == hash_u64!("split") => return Box::new(Self::split),
+            // Original
+            x if x == hash_u64!("len") => Box::new(Self::len),
+            x if x == hash_u64!("concat") => Box::new(Self::concat),
+            x if x == hash_u64!("copy") => Box::new(Self::copy),
+            x if x == hash_u64!("count") => Box::new(Self::count),
+            x if x == hash_u64!("reverse") => Box::new(Self::reverse),
+            x if x == hash_u64!("rep") => Box::new(Self::rep),
+            x if x == hash_u64!("bytes") => Box::new(Self::bytes),
+            x if x == hash_u64!("chars") => Box::new(Self::chars),
+            x if x == hash_u64!("split") => Box::new(Self::split),
+            x if x == hash_u64!("upper") => Box::new(Self::upper),
+            x if x == hash_u64!("lower") => Box::new(Self::lower),
+            // Trim
+            x if x == hash_u64!("trim") => Box::new(Self::trim),
+            x if x == hash_u64!("ltrim") => Box::new(Self::ltrim),
+            x if x == hash_u64!("rtrim") => Box::new(Self::rtrim),
+            // Search & Replace
+            x if x == hash_u64!("replace") => Box::new(Self::replace),
+            x if x == hash_u64!("find") => Box::new(Self::find),
+            x if x == hash_u64!("starts_with") => Box::new(Self::starts_with),
+            x if x == hash_u64!("ends_with") => Box::new(Self::ends_with),
+            // Case
+            x if x == hash_u64!("title") => Box::new(Self::title),
+            // Padding
+            x if x == hash_u64!("center") => Box::new(Self::center),
+            x if x == hash_u64!("ljust") => Box::new(Self::ljust),
+            x if x == hash_u64!("rjust") => Box::new(Self::rjust),
+            // Predicates
+            x if x == hash_u64!("is_upper") => Box::new(Self::is_upper),
+            x if x == hash_u64!("is_lower") => Box::new(Self::is_lower),
+            x if x == hash_u64!("is_numeric") => Box::new(Self::is_numeric),
+            x if x == hash_u64!("is_alphanumeric") => Box::new(Self::is_alphanumeric),
+            x if x == hash_u64!("is_alpha") => Box::new(Self::is_alpha),
+            x if x == hash_u64!("is_ascii") => Box::new(Self::is_ascii),
+            x if x == hash_u64!("is_empty") => Box::new(Self::is_empty),
+            x if x == hash_u64!("is_whitespace") => Box::new(Self::is_whitespace),
 
             _ => panic!("Unknown function `{name}` on lib {}", self.get_name()),
         }

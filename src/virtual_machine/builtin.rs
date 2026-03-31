@@ -1,3 +1,5 @@
+use std::io::{Write, stdout};
+
 use crate::virtual_machine::{types::string::TString, value::Value, vm::VM};
 
 pub const BUILTIN_VOIDS: [&str; 2] = ["print", "println"];
@@ -18,6 +20,7 @@ pub fn builtin_print(vm: &mut VM, arg_count: usize, newline: bool) {
         println!("{string}");
     } else {
         print!("{string}");
+		let _ = stdout().flush();
     }
 }
 

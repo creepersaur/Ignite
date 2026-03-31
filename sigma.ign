@@ -1,2 +1,10 @@
-let x = "hello"
-println(x.reverse())
+using Std::IO::read_line
+
+loop {
+	let input = read_line("> ").trim()
+	if input == "exit" {
+		return;
+	}
+
+	println("you said:", input)
+}
