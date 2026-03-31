@@ -1,2 +1,1 @@
-let x = 10
-println(x)
+let url = "https://example.com"  // comment

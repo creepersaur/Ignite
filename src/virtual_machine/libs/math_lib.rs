@@ -1,5 +1,4 @@
-use crate::virtual_machine::{libs::lib::Library, value::Value, vm::VM};
-use std::rc::Rc;
+use crate::{hash_u64, virtual_machine::{libs::lib::Library, value::Value, vm::VM}};
 
 pub struct MathLib;
 
@@ -296,77 +295,77 @@ impl Library for MathLib {
         "math"
     }
 
-    fn get_function(&self, name: Rc<String>) -> Box<dyn Fn(&mut VM) -> Value> {
-        match name.as_str() {
+    fn get_function(&self, name: u64) -> Box<dyn Fn(&mut VM) -> Value> {
+        match name {
             // Basic
-            "abs" => Box::new(Self::abs),
-            "ceil" => Box::new(Self::ceil),
-            "floor" => Box::new(Self::floor),
-            "round" => Box::new(Self::round),
-            "trunc" => Box::new(Self::trunc),
-            "fract" => Box::new(Self::fract),
-            "sign" => Box::new(Self::sign),
-            "sqrt" => Box::new(Self::sqrt),
-            "cbrt" => Box::new(Self::cbrt),
-            "exp" => Box::new(Self::exp),
-            "exp2" => Box::new(Self::exp2),
-            "ln" => Box::new(Self::ln),
-            "log2" => Box::new(Self::log2),
-            "log10" => Box::new(Self::log10),
-            "recip" => Box::new(Self::recip),
+            x if x == hash_u64!("abs") => Box::new(Self::abs),
+            x if x == hash_u64!("ceil") => Box::new(Self::ceil),
+            x if x == hash_u64!("floor") => Box::new(Self::floor),
+            x if x == hash_u64!("round") => Box::new(Self::round),
+            x if x == hash_u64!("trunc") => Box::new(Self::trunc),
+            x if x == hash_u64!("fract") => Box::new(Self::fract),
+            x if x == hash_u64!("sign") => Box::new(Self::sign),
+            x if x == hash_u64!("sqrt") => Box::new(Self::sqrt),
+            x if x == hash_u64!("cbrt") => Box::new(Self::cbrt),
+            x if x == hash_u64!("exp") => Box::new(Self::exp),
+            x if x == hash_u64!("exp2") => Box::new(Self::exp2),
+            x if x == hash_u64!("ln") => Box::new(Self::ln),
+            x if x == hash_u64!("log2") => Box::new(Self::log2),
+            x if x == hash_u64!("log10") => Box::new(Self::log10),
+            x if x == hash_u64!("recip") => Box::new(Self::recip),
 
             // Two-argument
-            "pow" => Box::new(Self::pow),
-            "log" => Box::new(Self::log),
-            "hypot" => Box::new(Self::hypot),
-            "atan2" => Box::new(Self::atan2),
-            "min" => Box::new(Self::min),
-            "max" => Box::new(Self::max),
-            "clamp" => Box::new(Self::clamp),
-            "copysign" => Box::new(Self::copysign),
+            x if x == hash_u64!("pow") => Box::new(Self::pow),
+            x if x == hash_u64!("log") => Box::new(Self::log),
+            x if x == hash_u64!("hypot") => Box::new(Self::hypot),
+            x if x == hash_u64!("atan2") => Box::new(Self::atan2),
+            x if x == hash_u64!("min") => Box::new(Self::min),
+            x if x == hash_u64!("max") => Box::new(Self::max),
+            x if x == hash_u64!("clamp") => Box::new(Self::clamp),
+            x if x == hash_u64!("copysign") => Box::new(Self::copysign),
 
             // Trig
-            "sin" => Box::new(Self::sin),
-            "cos" => Box::new(Self::cos),
-            "tan" => Box::new(Self::tan),
-            "sinh" => Box::new(Self::sinh),
-            "cosh" => Box::new(Self::cosh),
-            "tanh" => Box::new(Self::tanh),
+            x if x == hash_u64!("sin") => Box::new(Self::sin),
+            x if x == hash_u64!("cos") => Box::new(Self::cos),
+            x if x == hash_u64!("tan") => Box::new(Self::tan),
+            x if x == hash_u64!("sinh") => Box::new(Self::sinh),
+            x if x == hash_u64!("cosh") => Box::new(Self::cosh),
+            x if x == hash_u64!("tanh") => Box::new(Self::tanh),
 
             // Inverse trig
-            "asin" => Box::new(Self::asin),
-            "acos" => Box::new(Self::acos),
-            "atan" => Box::new(Self::atan),
-            "asinh" => Box::new(Self::asinh),
-            "acosh" => Box::new(Self::acosh),
-            "atanh" => Box::new(Self::atanh),
+            x if x == hash_u64!("asin") => Box::new(Self::asin),
+            x if x == hash_u64!("acos") => Box::new(Self::acos),
+            x if x == hash_u64!("atan") => Box::new(Self::atan),
+            x if x == hash_u64!("asinh") => Box::new(Self::asinh),
+            x if x == hash_u64!("acosh") => Box::new(Self::acosh),
+            x if x == hash_u64!("atanh") => Box::new(Self::atanh),
 
             // Conversion
-            "to_radians" => Box::new(Self::to_radians),
-            "to_degrees" => Box::new(Self::to_degrees),
-            "to_celsius" => Box::new(Self::to_celsius),
-            "to_fahrenheit" => Box::new(Self::to_fahrenheit),
+            x if x == hash_u64!("to_radians") => Box::new(Self::to_radians),
+            x if x == hash_u64!("to_degrees") => Box::new(Self::to_degrees),
+            x if x == hash_u64!("to_celsius") => Box::new(Self::to_celsius),
+            x if x == hash_u64!("to_fahrenheit") => Box::new(Self::to_fahrenheit),
 
             // Predicates
-            "is_nan" => Box::new(Self::is_nan),
-            "is_infinite" => Box::new(Self::is_infinite),
-            "is_finite" => Box::new(Self::is_finite),
+            x if x == hash_u64!("is_nan") => Box::new(Self::is_nan),
+            x if x == hash_u64!("is_infinite") => Box::new(Self::is_infinite),
+            x if x == hash_u64!("is_finite") => Box::new(Self::is_finite),
 
-            "round_to" => Box::new(Self::round_to),
-            "lerp" => Box::new(Self::lerp),
-            "inv_lerp" => Box::new(Self::inv_lerp),
-            "remap" => Box::new(Self::remap),
-            "smoothstep" => Box::new(Self::smoothstep),
-            "gcd" => Box::new(Self::gcd),
-            "lcm" => Box::new(Self::lcm),
-            "factorial" => Box::new(Self::factorial),
-            "is_prime" => Box::new(Self::is_prime),
-            "fma" => Box::new(Self::fma),
-            "mid" => Box::new(Self::mid),
-            "wrap" => Box::new(Self::wrap),
-            "snap" => Box::new(Self::snap),
-            "ping_pong" => Box::new(Self::ping_pong),
-            "dist" => Box::new(Self::dist),
+            x if x == hash_u64!("round_to") => Box::new(Self::round_to),
+            x if x == hash_u64!("lerp") => Box::new(Self::lerp),
+            x if x == hash_u64!("inv_lerp") => Box::new(Self::inv_lerp),
+            x if x == hash_u64!("remap") => Box::new(Self::remap),
+            x if x == hash_u64!("smoothstep") => Box::new(Self::smoothstep),
+            x if x == hash_u64!("gcd") => Box::new(Self::gcd),
+            x if x == hash_u64!("lcm") => Box::new(Self::lcm),
+            x if x == hash_u64!("factorial") => Box::new(Self::factorial),
+            x if x == hash_u64!("is_prime") => Box::new(Self::is_prime),
+            x if x == hash_u64!("fma") => Box::new(Self::fma),
+            x if x == hash_u64!("mid") => Box::new(Self::mid),
+            x if x == hash_u64!("wrap") => Box::new(Self::wrap),
+            x if x == hash_u64!("snap") => Box::new(Self::snap),
+            x if x == hash_u64!("ping_pong") => Box::new(Self::ping_pong),
+            x if x == hash_u64!("dist") => Box::new(Self::dist),
 
             _ => panic!("Unknown function `{name}` on lib {}", self.get_name()),
         }

@@ -1,5 +1,5 @@
 use crate::{
-    rc,
+    hash_u64, rc,
     virtual_machine::{
         builtin::*,
         chunk::Chunk,
@@ -27,24 +27,25 @@ pub struct VM {
     pub call_stack: Vec<usize>,
     pub scope_stack: Vec<usize>,
     pub constants: Vec<Value>,
-    pub globals: HashMap<Rc<String>, (Value, bool)>,
-    pub locals: Vec<HashMap<Rc<String>, (Value, bool)>>,
-    pub libraries: HashMap<Rc<String>, Box<dyn Library>>,
+    pub globals: HashMap<u64, (Value, bool)>,
+    pub locals: Vec<HashMap<u64, (Value, bool)>>,
+    pub libraries: HashMap<u64, Box<dyn Library>>,
     pub iterators: Vec<(Value, usize)>,
+    pub intern_table: HashMap<u64, Rc<str>>,
 }
 
 #[allow(unused)]
 impl VM {
     pub fn new() -> Self {
         let mut libs: HashMap<_, Box<dyn Library>> = HashMap::new();
-        libs.insert(rc!("string".to_string()), Box::new(StringLib));
-        libs.insert(rc!("list".to_string()), Box::new(ListLib));
-        libs.insert(rc!("tuple".to_string()), Box::new(TupleLib));
-        libs.insert(rc!("dict".to_string()), Box::new(DictLib));
-        libs.insert(rc!("math".to_string()), Box::new(MathLib));
+        libs.insert(hash_u64!("string"), Box::new(StringLib));
+        libs.insert(hash_u64!("list"), Box::new(ListLib));
+        libs.insert(hash_u64!("tuple"), Box::new(TupleLib));
+        libs.insert(hash_u64!("dict"), Box::new(DictLib));
+        libs.insert(hash_u64!("math"), Box::new(MathLib));
 
         let mut globals = HashMap::new();
-        globals.insert(rc!("Std".to_string()), (load_standard_namespace(), true));
+        globals.insert(hash_u64!("Std"), (load_standard_namespace(), true));
 
         Self {
             pos: 0,
@@ -57,6 +58,7 @@ impl VM {
             locals: vec![HashMap::new()],
             libraries: libs,
             iterators: vec![],
+            intern_table: HashMap::new(),
         }
     }
 
@@ -114,6 +116,13 @@ impl VM {
         }
     }
 
+    pub fn lookup_intern(&self, id: u64) -> Rc<str> {
+        self.intern_table
+            .get(&id)
+            .unwrap_or(&rc!("<unknown>"))
+            .clone()
+    }
+
     pub fn print_instructions(&self) {
         let mut depth: i32 = 0;
 
@@ -130,65 +139,63 @@ impl VM {
                 continue;
             }
 
-            let s = format!("{:?}", v);
-
-            // Split the first word (the opcode) from the rest
-            let mut parts = s.splitn(2, '(');
-            let opcode = parts.next().unwrap();
-            let rest = parts.next().map_or("", |r| r);
-
             if let Inst::POP_SCOPE = v {
                 depth -= 1;
             }
 
-            if rest.is_empty() {
-                print!(
-                    "{MAGENTA}{:>2}{RESET}\t{}",
-                    i,
-                    format!(
-                        "{}{}",
-                        if depth < 0 { RED } else { DIM_BLACK },
-                        "|  ".repeat(depth.abs() as usize)
-                    )
-                );
-                if matches!(v, Inst::EXIT) | matches!(v, Inst::RETURN) {
-                    print!("{RED}");
-                } else if matches!(v, Inst::LIST(_))
-                    | matches!(v, Inst::TUPLE(_))
-                    | matches!(v, Inst::DICT(_))
-                    | matches!(v, Inst::RANGE)
-                {
-                    print!("{GREEN}");
-                } else if matches!(v, Inst::NOP) {
-                    print!("{BLACK}")
-                } else {
-                    print!("{ORANGE}");
+            let indent = format!(
+                "{}{}",
+                if depth < 0 { RED } else { DIM_BLACK },
+                "|  ".repeat(depth.abs() as usize)
+            );
+
+            // Resolve u64 instructions to human-readable display strings
+            let display = match v {
+                Inst::LOAD(id) => Some(format!("LOAD({})", self.lookup_intern(*id))),
+                Inst::LOAD_LOCAL(id) => Some(format!("LOAD_LOCAL({})", self.lookup_intern(*id))),
+                Inst::LOAD_GLOBAL(id) => Some(format!("LOAD_GLOBAL({})", self.lookup_intern(*id))),
+                Inst::STORE_LOCAL(id) => Some(format!("STORE_LOCAL({})", self.lookup_intern(*id))),
+                Inst::STORE_LOCAL_CONST(id) => {
+                    Some(format!("STORE_LOCAL_CONST({})", self.lookup_intern(*id)))
                 }
-                print!("{opcode}{RESET}");
+                Inst::STORE_GLOBAL(id) => {
+                    Some(format!("STORE_GLOBAL({})", self.lookup_intern(*id)))
+                }
+                Inst::SET_VAR(id) => Some(format!("SET_VAR({})", self.lookup_intern(*id))),
+                _ => None,
+            };
+
+            let s = match &display {
+                Some(d) => d.clone(),
+                None => format!("{:?}", v),
+            };
+
+            let mut parts = s.splitn(2, '(');
+            let opcode = parts.next().unwrap();
+            let rest = parts.next().map_or("", |r| r);
+
+            let color = if matches!(v, Inst::EXIT | Inst::RETURN) {
+                RED
+            } else if matches!(
+                v,
+                Inst::LIST(_) | Inst::TUPLE(_) | Inst::DICT(_) | Inst::RANGE
+            ) {
+                GREEN
+            } else if matches!(v, Inst::NOP) {
+                BLACK
+            } else {
+                ORANGE
+            };
+
+            print!("{MAGENTA}{i:>2}{RESET}\t{BLACK}{indent}");
+
+            if rest.is_empty() {
+                print!("{color}{opcode}{RESET}");
             } else {
                 print!(
-                    "{MAGENTA}{:>2}{RESET}\t{BLACK}{}",
-                    i,
-                    format!(
-                        "{}{}",
-                        if depth < 0 { RED } else { DIM_BLACK },
-                        "|  ".repeat(depth.abs() as usize)
-                    ),
+                    "{color}{opcode}{RESET}({BLUE}{}{RESET})",
+                    &rest[0..rest.len() - 1]
                 );
-                if matches!(v, Inst::EXIT) | matches!(v, Inst::RETURN) {
-                    print!("{RED}");
-                } else if matches!(v, Inst::LIST(_))
-                    | matches!(v, Inst::TUPLE(_))
-                    | matches!(v, Inst::DICT(_))
-                    | matches!(v, Inst::RANGE)
-                {
-                    print!("{GREEN}");
-                } else if matches!(v, Inst::NOP) {
-                    print!("{BLACK}")
-                } else {
-                    print!("{ORANGE}");
-                }
-                print!("{opcode}{RESET}({BLUE}{}{RESET})", &rest[0..rest.len() - 1]);
             }
 
             if let Inst::LOAD_CONST(x) = v {
@@ -201,7 +208,7 @@ impl VM {
             if let Inst::POP_SCOPE = v {
                 println!(" }}");
             } else {
-                println!("")
+                println!();
             }
         }
     }
@@ -478,7 +485,7 @@ impl VM {
 
                 Inst::LOAD_CONST(idx) => self.stack.push(self.constants[*idx].clone()),
                 Inst::STORE_GLOBAL(name) => {
-                    let name = name.clone();
+                    let name = *name;
                     let value = self.pop();
                     self.globals.insert(name, (value, false));
                 }
@@ -557,14 +564,18 @@ impl VM {
                     if let Some(scope) = found_idx {
                         let name = name.clone();
                         let value = self.pop();
-                        self.locals[scope].insert(name, (value, false));
+                        if let Some(slot) = self.locals[scope].get_mut(&name) {
+                            slot.0 = value;
+                        }
                     } else if let Some((_, is_const)) = self.globals.get(name) {
                         if *is_const {
                             panic!("Cannot set a global constant `{name}`");
                         } else {
                             let name = name.clone();
                             let value = self.pop();
-                            self.globals.insert(name, (value, false));
+                            if let Some(slot) = self.globals.get_mut(&name) {
+                                slot.0 = value;
+                            }
                         }
                     }
                 }

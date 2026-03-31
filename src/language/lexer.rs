@@ -7,9 +7,9 @@ use crate::language::token::{
 };
 
 const PUNCTUATION: &str = "!@#$%^&*()-+[]{}|:;,./<>?=\n";
-const DOUBLE: [&str; 18] = [
+const DOUBLE: [&str; 19] = [
     "->", "||", "&&", "<=", ">=", "==", "!=", "=>", "::", "..", "++", "--", "+=", "-=", "*=", "/=",
-    "%=", "^=",
+    "%=", "^=", "//",
 ];
 
 #[derive(Debug)]
@@ -22,28 +22,13 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(text: &str) -> Self {
         let mut new_lexer = Self {
-            chars: Self::apply_comments(text),
+            chars: text.chars().collect::<Vec<_>>(),
             pos: -1,
             cur_char: None,
         };
 
         new_lexer.advance();
         new_lexer
-    }
-
-    pub fn apply_comments(text: &str) -> Vec<char> {
-        text.lines()
-            .map(|x| {
-                if let Some((left, _)) = x.split_once("//") {
-                    left
-                } else {
-                    x
-                }
-            })
-            .collect::<Vec<&str>>()
-            .join("\n")
-            .chars()
-            .collect()
     }
 
     pub fn advance(&mut self) {
@@ -59,6 +44,7 @@ impl Lexer {
     pub fn get_tokens(&mut self) -> Vec<Token> {
         let mut tokens = vec![];
         let mut instr = None;
+        let mut in_comment = false;
 
         loop {
             if self.cur_char.is_none() {
@@ -78,11 +64,19 @@ impl Lexer {
             let mut current_token = String::new();
 
             while let Some(c) = self.cur_char {
+                if in_comment {
+                    break;
+                }
+
                 if instr.is_none() && (c == '\t' || c == ' ') {
                     break;
                 }
 
                 if instr.is_none() && PUNCTUATION.contains(c) {
+                    if c == '\n' {
+                        in_comment = false;
+                    }
+
                     if c == '.' && current_token.parse::<i32>().is_ok() {
                         let next_char = self.chars.get((self.pos + 1) as usize);
 
@@ -104,6 +98,12 @@ impl Lexer {
                     {
                         tokens.pop();
                         current_token = format!("{}{c}", self.chars[self.pos as usize - 1]);
+
+                        if current_token == "//" {
+                            current_token.clear();
+                            in_comment = true;
+							break;
+                        }
 
                         tokens.push(Self::identify(&current_token, start_pos - 1));
                         current_token.clear();
@@ -235,7 +235,7 @@ impl Lexer {
                 return NumberLiteral(x);
             }
         }
-		
+
         if let Ok(x) = text.parse::<bool>() {
             return BooleanLiteral(x);
         } else if text.starts_with('"') && text.ends_with('"') {

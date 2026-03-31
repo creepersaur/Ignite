@@ -1,15 +1,14 @@
 // return Value::Number(self.values.borrow().len() as f64)
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
-    rc,
-    virtual_machine::{
+    hash_u64, rc, virtual_machine::{
         libs::lib::Library,
         types::{dict::TDict, list::TList},
         value::Value,
         vm::VM,
-    },
+    }
 };
 
 pub const DICT_FUNCTIONS: [&str; 11] = [
@@ -230,21 +229,21 @@ impl Library for DictLib {
         "dict"
     }
 
-    fn get_function(&self, name: Rc<String>) -> Box<dyn Fn(&mut VM) -> Value> {
-        match name.as_str() {
-            "len" => return Box::new(Self::len),
-            "items" => return Box::new(Self::items),
-            "keys" => return Box::new(Self::keys),
-            "values" => return Box::new(Self::values),
-            "get" => return Box::new(Self::get),
-            "insert" => return Box::new(Self::insert),
-            "remove" => return Box::new(Self::remove),
-            "map" => return Box::new(Self::map),
-            "clear" => return Box::new(Self::clear),
-            "append" => return Box::new(Self::append),
-            "concat" => return Box::new(Self::concat),
-            "copy" => return Box::new(Self::copy),
-            "count" => return Box::new(Self::count),
+    fn get_function(&self, name: u64) -> Box<dyn Fn(&mut VM) -> Value> {
+        match name {
+            x if x == hash_u64!("len") => return Box::new(Self::len),
+            x if x == hash_u64!("items") => return Box::new(Self::items),
+            x if x == hash_u64!("keys") => return Box::new(Self::keys),
+            x if x == hash_u64!("values") => return Box::new(Self::values),
+            x if x == hash_u64!("get") => return Box::new(Self::get),
+            x if x == hash_u64!("insert") => return Box::new(Self::insert),
+            x if x == hash_u64!("remove") => return Box::new(Self::remove),
+            x if x == hash_u64!("map") => return Box::new(Self::map),
+            x if x == hash_u64!("clear") => return Box::new(Self::clear),
+            x if x == hash_u64!("append") => return Box::new(Self::append),
+            x if x == hash_u64!("concat") => return Box::new(Self::concat),
+            x if x == hash_u64!("copy") => return Box::new(Self::copy),
+            x if x == hash_u64!("count") => return Box::new(Self::count),
 
             _ => panic!("Unknown function `{name}` on lib {}", self.get_name()),
         }

@@ -5,13 +5,13 @@ use std::{
     rc::Rc,
 };
 
-use crate::virtual_machine::value::Value;
+use crate::{hash_u64, virtual_machine::value::Value};
 
 #[derive(Encode, Decode, Clone, PartialEq, PartialOrd)]
 pub struct TFunction {
     pub entry: usize,
     pub args: usize,
-    pub handler: Option<(Rc<String>, Rc<String>)>,
+    pub handler: Option<(u64, u64)>,
     pub this: Option<Box<Value>>,
 }
 
@@ -33,7 +33,7 @@ impl TFunction {
         Self {
             entry: 0,
             args,
-            handler: Some((lib, method)),
+            handler: Some((hash_u64!(lib.as_ref()), hash_u64!(method.as_ref()))),
             this,
         }
     }

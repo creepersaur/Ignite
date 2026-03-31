@@ -1,7 +1,7 @@
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering};
 
 use crate::{
-    rc,
+    hash_u64, rc,
     virtual_machine::{libs::lib::Library, types::list::TList, value::Value, vm::VM},
 };
 
@@ -160,17 +160,17 @@ impl Library for TupleLib {
         "tuple"
     }
 
-    fn get_function(&self, name: Rc<String>) -> Box<dyn Fn(&mut VM) -> Value> {
-        match name.as_str() {
-            "len" => return Box::new(Self::len),
-            "map" => return Box::new(Self::map),
-            "concat" => return Box::new(Self::concat),
-            "copy" => return Box::new(Self::copy),
-            "count" => return Box::new(Self::count),
-            "sort" => return Box::new(Self::sort),
-            "reverse" => return Box::new(Self::reverse),
-            "rep" => return Box::new(Self::rep),
-            "to_list" => return Box::new(Self::to_list),
+    fn get_function(&self, name: u64) -> Box<dyn Fn(&mut VM) -> Value> {
+        match name {
+            x if x == hash_u64!("len") => return Box::new(Self::len),
+            x if x == hash_u64!("map") => return Box::new(Self::map),
+            x if x == hash_u64!("concat") => return Box::new(Self::concat),
+            x if x == hash_u64!("copy") => return Box::new(Self::copy),
+            x if x == hash_u64!("count") => return Box::new(Self::count),
+            x if x == hash_u64!("sort") => return Box::new(Self::sort),
+            x if x == hash_u64!("reverse") => return Box::new(Self::reverse),
+            x if x == hash_u64!("rep") => return Box::new(Self::rep),
+            x if x == hash_u64!("to_list") => return Box::new(Self::to_list),
 
             _ => panic!("Unknown function `{name}` on lib {}", self.get_name()),
         }

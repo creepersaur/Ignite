@@ -1,6 +1,5 @@
-use std::{cell::RefCell, rc::Rc};
-
 use crate::{
+    hash_u64,
     misc::to_index::to_index,
     rc,
     virtual_machine::{
@@ -10,6 +9,7 @@ use crate::{
         vm::VM,
     },
 };
+use std::cell::RefCell;
 
 pub const STRING_FUNCTIONS: [&str; 16] = [
     "len", "push", "insert", "remove", "pop", "clear", "concat", "copy", "count", "reverse",
@@ -290,24 +290,24 @@ impl Library for StringLib {
         "string"
     }
 
-    fn get_function(&self, name: Rc<String>) -> Box<dyn Fn(&mut VM) -> Value> {
-        match name.as_str() {
-            "len" => return Box::new(Self::len),
-            "push" => return Box::new(Self::push),
-            "insert" => return Box::new(Self::insert),
-            "remove" => return Box::new(Self::remove),
-            "pop" => return Box::new(Self::pop),
-            "clear" => return Box::new(Self::clear),
-            "concat" => return Box::new(Self::concat),
-            "copy" => return Box::new(Self::copy),
-            "count" => return Box::new(Self::count),
-            "reverse" => return Box::new(Self::reverse),
-            "fill" => return Box::new(Self::fill),
-            "rep" => return Box::new(Self::rep),
-            "push_n" => return Box::new(Self::push_n),
-            "bytes" => return Box::new(Self::bytes),
-            "chars" => return Box::new(Self::chars),
-            "split" => return Box::new(Self::split),
+    fn get_function(&self, name: u64) -> Box<dyn Fn(&mut VM) -> Value> {
+        match name {
+            x if x == hash_u64!("len") => return Box::new(Self::len),
+            x if x == hash_u64!("push") => return Box::new(Self::push),
+            x if x == hash_u64!("insert") => return Box::new(Self::insert),
+            x if x == hash_u64!("remove") => return Box::new(Self::remove),
+            x if x == hash_u64!("pop") => return Box::new(Self::pop),
+            x if x == hash_u64!("clear") => return Box::new(Self::clear),
+            x if x == hash_u64!("concat") => return Box::new(Self::concat),
+            x if x == hash_u64!("copy") => return Box::new(Self::copy),
+            x if x == hash_u64!("count") => return Box::new(Self::count),
+            x if x == hash_u64!("reverse") => return Box::new(Self::reverse),
+            x if x == hash_u64!("fill") => return Box::new(Self::fill),
+            x if x == hash_u64!("rep") => return Box::new(Self::rep),
+            x if x == hash_u64!("push_n") => return Box::new(Self::push_n),
+            x if x == hash_u64!("bytes") => return Box::new(Self::bytes),
+            x if x == hash_u64!("chars") => return Box::new(Self::chars),
+            x if x == hash_u64!("split") => return Box::new(Self::split),
 
             _ => panic!("Unknown function `{name}` on lib {}", self.get_name()),
         }

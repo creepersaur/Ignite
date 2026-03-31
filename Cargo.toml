@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bincode = "=2.0.1"
 simply_colored = "*"
+rustc-hash = "2.1"
 
 [profile.release]
 opt-level = 3         # Maximize optimizations (default for release)

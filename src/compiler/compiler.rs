@@ -1,4 +1,5 @@
 use crate::{
+    hash_u64,
     language::{nodes::Node, token::TokenKind},
     patch, patch_execute, rc,
     virtual_machine::{
@@ -8,12 +9,13 @@ use crate::{
         value::Value,
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub struct Compiler {
     pub constants: Vec<Value>,
     pub offset: usize,
     pub instructions: Vec<Inst>,
+    pub intern_table: HashMap<u64, Rc<str>>,
 }
 
 impl Compiler {
@@ -22,7 +24,14 @@ impl Compiler {
             offset: 0,
             constants: vec![],
             instructions: vec![],
+            intern_table: HashMap::new(),
         }
+    }
+
+    pub fn intern(&mut self, s: &str) -> u64 {
+        let id = hash_u64!(s);
+        self.intern_table.entry(id).or_insert_with(|| Rc::from(s));
+        id
     }
 
     pub fn comment(&mut self, data: &str) {
@@ -32,7 +41,10 @@ impl Compiler {
     pub fn compile_node(&mut self, node: &Node) {
         match node {
             Node::NIL => self.instructions.push(Inst::PUSH(Value::NIL)),
-            Node::Variable(x) => self.instructions.push(Inst::LOAD(x.clone())),
+            Node::Variable(x) => {
+                let id = self.intern(x.as_str());
+                self.instructions.push(Inst::LOAD(id))
+            }
             Node::NumberLiteral(x) => self.instructions.push(Inst::PUSH(Value::Number(*x))),
             Node::BooleanLiteral(x) => self.instructions.push(Inst::PUSH(Value::Bool(*x))),
             Node::StringLiteral(x) => {
@@ -195,7 +207,8 @@ impl Compiler {
                 if is_prefix {
                     self.instructions.push(Inst::DUP);
                 }
-                self.instructions.push(Inst::SET_VAR(x.clone()));
+                let id = self.intern(x.as_str());
+                self.instructions.push(Inst::SET_VAR(id))
             } else if let Node::MemberAccess { expr, member } = &**target {
                 self.compile_node(&**expr);
                 if !is_prefix {
@@ -270,14 +283,16 @@ impl Compiler {
             };
 
             if is_const {
-                self.instructions
-                    .push(Inst::STORE_LOCAL_CONST(names[i].clone()));
+                let id = self.intern(names[i].as_str());
+                self.instructions.push(Inst::STORE_LOCAL_CONST(id))
             } else {
-                self.instructions.push(Inst::STORE_LOCAL(names[i].clone()));
+                let id = self.intern(names[i].as_str());
+                self.instructions.push(Inst::STORE_LOCAL(id))
             }
         }
 
-        self.instructions.push(Inst::LOAD(names[0].clone()));
+        let id = self.intern(names[0].as_str());
+        self.instructions.push(Inst::LOAD(id))
     }
 
     pub fn compile_block(&mut self, body: &Vec<Node>) {
@@ -397,7 +412,7 @@ impl Compiler {
     pub fn compile_set_variable(&mut self, target: &Box<Node>, value: &Box<Node>) {
         if let Node::Variable(x) = &**target {
             self.compile_node(&**value);
-            self.instructions.push(Inst::SET_VAR(x.clone()));
+            self.instructions.push(Inst::SET_VAR(hash_u64!(x.as_str())));
         } else if let Node::MemberAccess { expr, member } = &**target {
             self.compile_node(&**value);
             self.compile_node(&**expr);
@@ -429,7 +444,7 @@ impl Compiler {
             self.compile_node(&**target);
             self.compile_node(&**value);
             self.instructions.push(operator_inst);
-            self.instructions.push(Inst::SET_VAR(x.clone()));
+            self.instructions.push(Inst::SET_VAR(hash_u64!(x.as_str())));
         } else if let Node::MemberAccess { expr, member } = &**target {
             self.compile_node(&**value);
             self.compile_node(&**expr);
@@ -461,7 +476,8 @@ impl Compiler {
         self.comment("New function:");
         let func_value = patch!(self.instructions);
         if let Some(name) = name {
-            self.instructions.push(Inst::STORE_LOCAL(name.clone()));
+            self.instructions
+                .push(Inst::STORE_LOCAL(hash_u64!(name.as_str())));
         }
         let func_jump_to_end = patch!(self.instructions);
 
@@ -479,7 +495,8 @@ impl Compiler {
                 self.instructions.push(Inst::DEFAULT);
             }
 
-            self.instructions.push(Inst::STORE_LOCAL(arg_name.clone()));
+            self.instructions
+                .push(Inst::STORE_LOCAL(hash_u64!(arg_name.as_str())));
         }
 
         self.compile_node(block);
@@ -540,7 +557,8 @@ impl Compiler {
         let loop_start_index = self.instructions.len();
 
         let for_iter = patch!(self.instructions);
-        self.instructions.push(Inst::STORE_LOCAL(var_name.clone()));
+        self.instructions
+            .push(Inst::STORE_LOCAL(hash_u64!(var_name.as_str())));
 
         self.compile_node(&*block);
 

@@ -79,6 +79,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         vm.constants = compiler.constants;
         vm.instructions = compiler.instructions;
+        vm.intern_table = compiler.intern_table;
     }
 
     if args.contains(&"inst".to_string()) {

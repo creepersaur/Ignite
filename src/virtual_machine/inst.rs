@@ -45,18 +45,18 @@ pub enum Inst {
     NOT, // ✅
 
     LOAD_CONST(usize),        // ✅
-    LOAD_GLOBAL(Rc<String>),  // ✅
-    STORE_GLOBAL(Rc<String>), // ✅
-    SET_VAR(Rc<String>),      // ✅
+    LOAD_GLOBAL(u64),  // ✅
+    STORE_GLOBAL(u64), // ✅
+    SET_VAR(u64),      // ✅
 
     PUSH_SCOPE,                    // ✅
     POP_SCOPE,                     // ✅
-    LOAD_LOCAL(Rc<String>),        // ✅
-    STORE_LOCAL(Rc<String>),       // ✅
-    STORE_LOCAL_CONST(Rc<String>), // ✅
+    LOAD_LOCAL(u64),        // ✅
+    STORE_LOCAL(u64),       // ✅
+    STORE_LOCAL_CONST(u64), // ✅
 
     // Load from local or global
-    LOAD(Rc<String>), // ✅
+    LOAD(u64), // ✅
 
     JUMP(usize),          // ✅
     JUMP_IF_FALSE(usize), // ✅
