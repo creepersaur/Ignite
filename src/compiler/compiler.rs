@@ -2,7 +2,7 @@ use crate::{
     language::{nodes::Node, token::TokenKind},
     patch, patch_execute, rc,
     virtual_machine::{
-        builtin::BUILTINS,
+        builtin::{BUILTIN_VOIDS, BUILTINS},
         inst::Inst,
         types::{function::TFunction, string::TString},
         value::Value,
@@ -61,7 +61,12 @@ impl Compiler {
 
             Node::ExprStmt(x) => {
                 self.compile_node(&*x);
-                self.instructions.push(Inst::POP)
+                if !matches!(
+                    self.instructions[self.instructions.len() - 1],
+                    Inst::CALL_BUILTIN_VOID(..)
+                ) {
+                    self.instructions.push(Inst::POP)
+                }
             }
 
             Node::UnaryOp {
@@ -322,6 +327,11 @@ impl Compiler {
         {
             self.instructions
                 .push(Inst::CALL_BUILTIN(x.clone(), args.len()));
+        } else if let Node::Variable(x) = &**target
+            && BUILTIN_VOIDS.contains(&&***x)
+        {
+            self.instructions
+                .push(Inst::CALL_BUILTIN_VOID(x.clone(), args.len()));
         } else {
             self.compile_node(&**target);
             self.instructions.push(Inst::CALL);

@@ -4,11 +4,12 @@ use crate::{
         builtin::*,
         chunk::Chunk,
         inst::Inst,
-        traits::member_accessible::IMemberAccessible,
-        types::libs::{
-            dict_lib::DictLib, lib::Library, list_lib::ListLib, string_lib::StringLib,
-            tuple_lib::TupleLib,
+        libs::{
+            dict_lib::DictLib, lib::Library, list_lib::ListLib, math_lib::MathLib,
+            string_lib::StringLib, tuple_lib::TupleLib,
         },
+        namespaces::standard_namespace::load_standard_namespace,
+        traits::member_accessible::IMemberAccessible,
         types::{dict::TDict, function::TFunction, list::TList, string::TString},
         value::Value,
     },
@@ -40,6 +41,10 @@ impl VM {
         libs.insert(rc!("list".to_string()), Box::new(ListLib));
         libs.insert(rc!("tuple".to_string()), Box::new(TupleLib));
         libs.insert(rc!("dict".to_string()), Box::new(DictLib));
+        libs.insert(rc!("math".to_string()), Box::new(MathLib));
+
+        let mut globals = HashMap::new();
+        globals.insert(rc!("Std".to_string()), (load_standard_namespace(), true));
 
         Self {
             pos: 0,
@@ -48,7 +53,7 @@ impl VM {
             call_stack: Vec::with_capacity(100),
             scope_stack: vec![],
             constants: Vec::with_capacity(100),
-            globals: HashMap::new(),
+            globals,
             locals: vec![HashMap::new()],
             libraries: libs,
             iterators: vec![],
@@ -585,13 +590,15 @@ impl VM {
                         panic!("Tried calling non-function: {func:?}")
                     }
                 }
-                Inst::CALL_BUILTIN(name, arg_count) => match &***name {
+                Inst::CALL_BUILTIN_VOID(name, arg_count) => match &***name {
                     "print" => builtin_print(self, *arg_count, false),
                     "println" => builtin_print(self, *arg_count, true),
-                    "typeof" => builtin_typeof(self),
-                    "round" => builtin_round(self),
 
+                    _ => panic!("Unknown void built-in: {name}"),
+                },
+                Inst::CALL_BUILTIN(name, arg_count) => match &***name {
                     // types
+                    "typeof" => builtin_typeof(self),
                     "string" => builtin_string(self),
                     "number" => builtin_number(self),
                     "bool" => builtin_bool(self),
@@ -640,6 +647,11 @@ impl VM {
                             self.stack.push(value);
                         }
 
+                        Value::Namespace(x) => {
+                            let value = x.borrow().get_member(self, &member);
+                            self.stack.push(value);
+                        }
+
                         _ => panic!("Cannot get property on `{target:?}`"),
                     }
                 }
@@ -649,19 +661,26 @@ impl VM {
                     let value = self.pop();
 
                     match target {
-                        Value::List(x) => {
+                        Value::List(mut x) => {
                             x.set_member(&member, value);
                         }
 
-                        Value::Tuple(x) => {
+                        Value::Tuple(mut x) => {
                             x.set_member(&member, value);
                         }
 
-                        Value::Dict(x) => {
+                        Value::Dict(mut x) => {
                             x.set_member(&member, value);
                         }
 
-                        _ => panic!("Cannot set property `{member:?}` on `{target:?}`"),
+                        Value::Namespace(mut x) => {
+                            x.borrow_mut().set_member(&member, value);
+                        }
+
+                        _ => panic!(
+                            "Cannot set property `{member:?}` on `{}`",
+                            target.to_string(false)
+                        ),
                     }
                 }
 

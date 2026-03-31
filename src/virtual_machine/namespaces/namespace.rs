@@ -1,17 +1,60 @@
+use bincode::{Decode, Encode};
+
 use crate::{
     rc,
     virtual_machine::{traits::member_accessible::IMemberAccessible, value::Value, vm::VM},
 };
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+    rc::Rc,
+};
 
-#[derive(Debug, Clone)]
-pub struct Namespace {
+#[derive(Debug, Clone, Encode, Decode)]
+pub struct TNamespace {
     pub name: String,
     pub locked: bool,
     pub env: HashMap<Rc<String>, (Value, bool)>,
 }
 
-impl IMemberAccessible for Namespace {
+impl TNamespace {
+    pub fn new(name: &str, locked: bool) -> Self {
+        Self {
+            name: name.to_string(),
+            locked,
+            env: HashMap::new(),
+        }
+    }
+
+	#[allow(unused)]
+    pub fn set(&mut self, name: &str, value: Value) {
+        self.env.insert(rc!(name.to_string()), (value, false));
+    }
+
+    pub fn set_const(&mut self, name: &str, value: Value) {
+        self.env.insert(rc!(name.to_string()), (value, true));
+    }
+}
+
+impl PartialEq for TNamespace {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
+impl PartialOrd for TNamespace {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Hash for TNamespace {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+
+impl IMemberAccessible for TNamespace {
     fn get_member(&self, _vm: &mut VM, member: &Value) -> Value {
         if let Value::String(t) = member {
             if let Some((value, _)) = self.env.get(&*t.0.borrow()) {
@@ -28,13 +71,13 @@ impl IMemberAccessible for Namespace {
         }
     }
 
-    fn set_member(&self, member: &Value, value: Value) {
+    fn set_member(&mut self, member: &Value, value: Value) {
         if self.locked {
             panic!("Cannot set a member of locked namespace `{}`", self.name);
         }
 
         if let Value::String(t) = member {
-            if let Some((_, is_const)) = self.env.get(&t.0.borrow()) {
+            if let Some((_, is_const)) = self.env.get(&*t.0.borrow()) {
                 if !*is_const {
                     self.env.insert(rc!(t.0.borrow().clone()), (value, false));
                 } else {
@@ -49,4 +92,16 @@ impl IMemberAccessible for Namespace {
             panic!("Can only set string members on a namespace.")
         }
     }
+}
+
+// NAMESPACE LIB FUNCTION
+
+#[macro_export]
+macro_rules! namespace_lib_function {
+    ($namespace:expr, $lib:expr, $func:expr, $args:expr, $return_type:expr) => {
+        $namespace.env.insert(
+            rc!($func.to_string()),
+            (lib_function!($lib, $func, $args, $return_type), true),
+        );
+    };
 }

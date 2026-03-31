@@ -65,9 +65,10 @@ pub enum Inst {
     GET_PROP, // ✅
     SET_PROP, // ✅
 
-    CALL,                            // ✅
-    CALL_BUILTIN(Rc<String>, usize), // ✅
-    RETURN,                          // ✅
+    CALL,                                 // ✅
+    CALL_BUILTIN(Rc<String>, usize),      // ✅
+	CALL_BUILTIN_VOID(Rc<String>, usize), // ✅
+    RETURN,                               // ✅
 
     // Get iterator (for loop)
     GET_ITER,        // ✅

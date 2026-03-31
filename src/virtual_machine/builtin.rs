@@ -1,7 +1,8 @@
 use crate::virtual_machine::{types::string::TString, value::Value, vm::VM};
 
-pub const BUILTINS: [&str; 8] = [
-    "print", "println", "typeof", "round", "string", "number", "bool", "char",
+pub const BUILTIN_VOIDS: [&str; 2] = ["print", "println"];
+pub const BUILTINS: [&str; 6] = [
+    "typeof", "round", "string", "number", "bool", "char",
 ];
 
 pub fn builtin_print(vm: &mut VM, arg_count: usize, newline: bool) {
@@ -18,20 +19,12 @@ pub fn builtin_print(vm: &mut VM, arg_count: usize, newline: bool) {
     } else {
         print!("{string}");
     }
-
-    vm.stack.push(Value::NIL);
 }
 
 pub fn builtin_typeof(vm: &mut VM) {
     let value = vm.pop();
 
     vm.stack.push(Value::String(TString::new(value.get_type())));
-}
-
-pub fn builtin_round(vm: &mut VM) {
-    let value = vm.pop();
-
-    vm.stack.push(Value::Number(value.as_number().round()));
 }
 
 // TYPES
@@ -64,7 +57,8 @@ pub fn builtin_char(vm: &mut VM) {
     } else if matches!(value, Value::Char(_)) {
         vm.stack.push(value);
     } else if let Value::String(v) = value {
-        vm.stack.push(Value::Char(v.0.borrow().chars().nth(0).unwrap()));
+        vm.stack
+            .push(Value::Char(v.0.borrow().chars().nth(0).unwrap()));
     } else {
         panic!("Cannot convert {value:?} to char");
     }

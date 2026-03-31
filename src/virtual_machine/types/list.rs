@@ -6,7 +6,7 @@ use crate::{
     rc,
     virtual_machine::{
         traits::member_accessible::IMemberAccessible, types::function::TFunction,
-        types::libs::list_lib::LIST_FUNCTIONS, types::libs::tuple_lib::TUPLE_FUNCTIONS,
+        libs::list_lib::LIST_FUNCTIONS, libs::tuple_lib::TUPLE_FUNCTIONS,
         value::Value, vm::VM,
     },
 };
@@ -68,7 +68,7 @@ impl IMemberAccessible for TList {
         panic!("Cannot get member `{}` on {self:?}", member.to_string(true));
     }
 
-    fn set_member(&self, member: &Value, value: Value) {
+    fn set_member(&mut self, member: &Value, value: Value) {
         if let Value::Number(index) = member {
             let len = self.values.borrow().len();
             let target_index = to_index(*index, len);

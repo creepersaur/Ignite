@@ -1,12 +1,14 @@
 use bincode::{Decode, Encode};
 use std::{
+    cell::RefCell,
     fmt::Debug,
     hash::{Hash, Hasher},
     rc::Rc,
 };
 
-use crate::virtual_machine::types::{
-    dict::TDict, function::TFunction, list::TList, string::TString,
+use crate::virtual_machine::{
+    namespaces::namespace::TNamespace,
+    types::{dict::TDict, function::TFunction, list::TList, string::TString},
 };
 
 #[allow(unused)]
@@ -26,7 +28,7 @@ pub enum Value {
     Dict(TDict),
 
     // Namespaces
-    Namespace(Rc<String>),
+    Namespace(Rc<RefCell<TNamespace>>),
 
     Range {
         start: Box<Value>,
@@ -74,7 +76,7 @@ impl Value {
                 }
             }
 
-            Self::Function(_) => String::from("<function>"),
+            Self::Function(f) => format!("<function: {:p}>", f as *const TFunction),
 
             Self::List(list) => format!(
                 "[{}]",
@@ -142,7 +144,7 @@ impl Value {
                     .join(", ")
             ),
 
-            Self::Namespace(name) => format!("namespace:{name}"),
+            Self::Namespace(space) => format!("namespace:{}", space.borrow().name),
 
             Self::Range {
                 start,
@@ -204,7 +206,7 @@ impl Hash for Value {
                 std::ptr::hash(d.values.as_ptr(), state);
             }
 
-            Self::Namespace(name) => format!("namespace:{name}").hash(state),
+            Self::Namespace(space) => space.borrow().hash(state),
 
             Self::Range {
                 start,

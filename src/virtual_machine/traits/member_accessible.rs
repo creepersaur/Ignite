@@ -7,7 +7,7 @@ pub trait IMemberAccessible: Debug {
     }
 
     #[allow(unused)]
-    fn set_member(&self, member: &Value, _value: Value) {
+    fn set_member(&mut self, member: &Value, _value: Value) {
         panic!("Cannot set member `{}` on {self:?}", member.to_string(true));
     }
 }

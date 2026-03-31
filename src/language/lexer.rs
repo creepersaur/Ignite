@@ -231,8 +231,12 @@ impl Lexer {
 
     pub fn identify_other(text: &str) -> TokenKind {
         if let Ok(x) = text.parse::<f64>() {
-            return NumberLiteral(x);
-        } else if let Ok(x) = text.parse::<bool>() {
+            if x.is_finite() {
+                return NumberLiteral(x);
+            }
+        }
+		
+        if let Ok(x) = text.parse::<bool>() {
             return BooleanLiteral(x);
         } else if text.starts_with('"') && text.ends_with('"') {
             return StringLiteral(text[1..text.len() - 1].to_string());

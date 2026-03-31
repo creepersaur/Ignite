@@ -4,7 +4,7 @@ use crate::{
     lib_function, rc,
     virtual_machine::{
         traits::member_accessible::IMemberAccessible, types::function::TFunction,
-        types::libs::dict_lib::DICT_FUNCTIONS, value::Value, vm::VM,
+        libs::dict_lib::DICT_FUNCTIONS, value::Value, vm::VM,
     },
 };
 use bincode::{Decode, Encode};
@@ -49,7 +49,7 @@ impl IMemberAccessible for TDict {
         panic!("Cannot get member `{}` on {self:?}", member.to_string(true));
     }
 
-    fn set_member(&self, member: &Value, value: Value) {
+    fn set_member(&mut self, member: &Value, value: Value) {
         self.values.borrow_mut().insert(member.clone(), value);
 
         // panic!("Cannot set member `{}` on {self:?}", member.to_string(true));

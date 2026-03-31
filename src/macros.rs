@@ -28,4 +28,13 @@ macro_rules! lib_function {
             Some(Box::new({ $val }($this.clone()))),
         ))
     };
+
+	($lib:expr, $member:expr, $args:expr, $val:expr) => {
+        Value::Function(TFunction::with_lib(
+            rc!($lib.to_string()),
+            rc!($member.to_string()).clone(),
+            $args,
+            None,
+        ))
+    };
 }

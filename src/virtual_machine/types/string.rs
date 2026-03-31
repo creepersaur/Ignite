@@ -6,7 +6,7 @@ use crate::{
     rc,
     virtual_machine::{
         traits::member_accessible::IMemberAccessible, types::function::TFunction,
-        types::libs::string_lib::STRING_FUNCTIONS, value::Value, vm::VM,
+        libs::string_lib::STRING_FUNCTIONS, value::Value, vm::VM,
     },
 };
 use bincode::{Decode, Encode};
@@ -50,7 +50,7 @@ impl IMemberAccessible for TString {
         panic!("Cannot get member `{}` on {self:?}", member.to_string(true));
     }
 
-    fn set_member(&self, member: &Value, _value: Value) {
+    fn set_member(&mut self, member: &Value, _value: Value) {
         panic!("Cannot set member `{}` on {self:?}", member.to_string(true));
     }
 }
