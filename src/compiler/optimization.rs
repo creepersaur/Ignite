@@ -28,7 +28,7 @@ impl Compiler {
                     self.instructions[i + 1] = Inst::COMMENT("optimized away POP".to_string());
                     i += 2;
                 }
-                (Inst::LOAD_LOCAL(_), Inst::POP) => {
+                (Inst::LOAD_LOCAL { .. }, Inst::POP) => {
                     self.instructions[i] = Inst::COMMENT("optimized away LOAD_LOCAL".to_string());
                     self.instructions[i + 1] = Inst::COMMENT("optimized away POP".to_string());
                     i += 2;

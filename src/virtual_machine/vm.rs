@@ -152,7 +152,11 @@ impl VM {
             // Resolve u64 instructions to human-readable display strings
             let display = match v {
                 Inst::LOAD(id) => Some(format!("LOAD({})", self.lookup_intern(*id))),
-                Inst::LOAD_LOCAL(id) => Some(format!("LOAD_LOCAL({})", self.lookup_intern(*id))),
+                Inst::LOAD_LOCAL { id, depth } => Some(format!(
+                    "LOAD_LOCAL(`{}`, depth: {})",
+                    self.lookup_intern(*id),
+                    depth
+                )),
                 Inst::LOAD_GLOBAL(id) => Some(format!("LOAD_GLOBAL({})", self.lookup_intern(*id))),
                 Inst::STORE_LOCAL(id) => Some(format!("STORE_LOCAL({})", self.lookup_intern(*id))),
                 Inst::STORE_LOCAL_CONST(id) => {
@@ -248,6 +252,9 @@ impl VM {
                 Inst::PRINT => println!("{}", self.pop().to_string(false)),
                 Inst::POP => {
                     self.pop();
+                }
+                Inst::TRY_POP => {
+                    self.stack.pop();
                 }
                 Inst::DEFAULT => {
                     let default_value = self.pop();
@@ -483,17 +490,20 @@ impl VM {
                     self.stack.push(Value::Bool(!res));
                 }
 
-                Inst::LOAD_CONST(idx) => self.stack.push(self.constants[*idx].clone()),
-                Inst::STORE_GLOBAL(name) => {
-                    let name = *name;
+                Inst::LOAD_CONST(id) => self.stack.push(self.constants[*id].clone()),
+                Inst::STORE_GLOBAL(id) => {
+                    let id = *id;
                     let value = self.pop();
-                    self.globals.insert(name, (value, false));
+                    self.globals.insert(id, (value, false));
                 }
-                Inst::LOAD_GLOBAL(name) => {
+                Inst::LOAD_GLOBAL(id) => {
                     self.stack.push(
                         self.globals
-                            .get(name)
-                            .expect("Global `{name}` doesn't exist.")
+                            .get(id)
+                            .expect(&format!(
+                                "Global `{}` doesn't exist.",
+                                self.lookup_intern(*id)
+                            ))
                             .0
                             .clone(),
                     );
@@ -503,25 +513,16 @@ impl VM {
                 Inst::POP_SCOPE => {
                     self.locals.pop();
                 }
-                Inst::STORE_LOCAL(name) => {
-                    let name = name.clone();
+                Inst::STORE_LOCAL(id) => {
+                    let id = *id;
                     let value = self.pop();
-                    self.locals.last_mut().unwrap().insert(name, (value, false));
+                    self.locals.last_mut().unwrap().insert(id, (value, false));
                 }
-                Inst::LOAD_LOCAL(name) => {
-                    let mut found = None;
-
-                    for scope in self.locals.iter().rev() {
-                        if let Some(val) = scope.get(name) {
-                            found = Some(val.clone());
-                            break;
-                        }
-                    }
-
-                    if let Some((val, _)) = found {
-                        self.stack.push(val);
+                Inst::LOAD_LOCAL { id, depth } => {
+                    if let Some((val, _)) = self.locals[*depth].get(id) {
+                        self.stack.push(val.clone());
                     } else {
-                        panic!("Unknown local variable: {name}");
+                        panic!("Unknown local variable: {}", self.lookup_intern(*id));
                     }
                 }
                 Inst::STORE_LOCAL_CONST(name) => {

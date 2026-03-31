@@ -9,13 +9,18 @@ use crate::{
         value::Value,
     },
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 pub struct Compiler {
     pub constants: Vec<Value>,
     pub offset: usize,
     pub instructions: Vec<Inst>,
     pub intern_table: HashMap<u64, Rc<str>>,
+    pub scopes: Vec<HashSet<String>>,
 }
 
 impl Compiler {
@@ -24,6 +29,7 @@ impl Compiler {
             offset: 0,
             constants: vec![],
             instructions: vec![],
+            scopes: vec![HashSet::new()],
             intern_table: HashMap::new(),
         }
     }
@@ -38,13 +44,51 @@ impl Compiler {
         self.instructions.push(Inst::COMMENT(data.to_string()))
     }
 
+    pub fn push_scope(&mut self) {
+        self.instructions.push(Inst::PUSH_SCOPE);
+        self.scopes.push(HashSet::new());
+    }
+
+    pub fn pop_scope(&mut self) {
+        self.instructions.push(Inst::POP_SCOPE);
+        self.scopes.pop();
+    }
+
+    pub fn emit_store_local(&mut self, name: &str, is_const: bool) {
+        let id = self.intern(name);
+        if is_const {
+            self.instructions.push(Inst::STORE_LOCAL_CONST(id));
+        } else {
+            self.instructions.push(Inst::STORE_LOCAL(id));
+        }
+
+        if let Some(current_scope) = self.scopes.last_mut() {
+            current_scope.insert(name.to_string());
+        }
+    }
+
+    pub fn emit_load_local(&mut self, name: &str) {
+        let mut found_depth = None;
+
+        for (depth, scope) in self.scopes.iter().enumerate().rev() {
+            if let Some(_) = scope.get(name) {
+                found_depth = Some(depth);
+                break;
+            }
+        }
+
+        let id = self.intern(name);
+        if let Some(depth) = found_depth {
+            self.instructions.push(Inst::LOAD_LOCAL { id, depth });
+        } else {
+            self.instructions.push(Inst::LOAD_GLOBAL(id));
+        }
+    }
+
     pub fn compile_node(&mut self, node: &Node) {
         match node {
             Node::NIL => self.instructions.push(Inst::PUSH(Value::NIL)),
-            Node::Variable(x) => {
-                let id = self.intern(x.as_str());
-                self.instructions.push(Inst::LOAD(id))
-            }
+            Node::Variable(x) => self.emit_load_local(x.as_str()),
             Node::NumberLiteral(x) => self.instructions.push(Inst::PUSH(Value::Number(*x))),
             Node::BooleanLiteral(x) => self.instructions.push(Inst::PUSH(Value::Bool(*x))),
             Node::StringLiteral(x) => {
@@ -77,7 +121,7 @@ impl Compiler {
                     self.instructions[self.instructions.len() - 1],
                     Inst::CALL_BUILTIN_VOID(..)
                 ) {
-                    self.instructions.push(Inst::POP)
+                    self.instructions.push(Inst::TRY_POP)
                 }
             }
 
@@ -93,6 +137,8 @@ impl Compiler {
                 values,
                 is_const,
             } => self.compile_let(names, &mut values.clone(), *is_const),
+
+            Node::UsingStatement { sequence, wildcard } => self.compile_using(sequence, *wildcard),
 
             Node::SetVariable { target, value } => self.compile_set_variable(target, value),
 
@@ -125,9 +171,9 @@ impl Compiler {
             Node::Block { body } => self.compile_block(body),
 
             Node::SingleLineBlock { body } => {
-                self.instructions.push(Inst::PUSH_SCOPE);
+                self.push_scope();
                 self.compile_node(&**body);
-                self.instructions.push(Inst::POP_SCOPE);
+                self.pop_scope();
             }
 
             Node::Loop { block } => self.compile_loop(block),
@@ -232,13 +278,20 @@ impl Compiler {
         // minus/plus/bang
         self.compile_node(target);
 
-        self.instructions.push(match op {
-            TokenKind::MINUS => Inst::NEG,
-            TokenKind::PLUS => Inst::POS,
-            TokenKind::BANG => Inst::NOT,
+        match op {
+            TokenKind::MINUS => {
+                if let Inst::PUSH(Value::Number(x)) = self.instructions[self.instructions.len() - 1] {
+                    self.instructions.pop();
+                    self.instructions.push(Inst::PUSH(Value::Number(-x)));
+                } else {
+                    self.instructions.push(Inst::NEG);
+                }
+            }
+            TokenKind::PLUS => self.instructions.push(Inst::POS),
+            TokenKind::BANG => self.instructions.push(Inst::NOT),
 
             _ => panic!("Tried compiling unknown unary op: {op:?}"),
-        });
+        }
     }
 
     pub fn compile_bin_op(&mut self, left: &Box<Node>, right: &Box<Node>, op: &TokenKind) {
@@ -282,23 +335,16 @@ impl Compiler {
                 self.instructions.push(Inst::PUSH(Value::NIL));
             };
 
-            if is_const {
-                let id = self.intern(names[i].as_str());
-                self.instructions.push(Inst::STORE_LOCAL_CONST(id))
-            } else {
-                let id = self.intern(names[i].as_str());
-                self.instructions.push(Inst::STORE_LOCAL(id))
-            }
+            self.emit_store_local(names[i].as_str(), is_const);
         }
 
-        let id = self.intern(names[0].as_str());
-        self.instructions.push(Inst::LOAD(id))
+        self.emit_load_local(names[0].as_str());
     }
 
     pub fn compile_block(&mut self, body: &Vec<Node>) {
         let mut outs = vec![];
 
-        self.instructions.push(Inst::PUSH_SCOPE);
+        self.push_scope();
         for i in body {
             if let Node::ExprStmt(expr) = i {
                 if let Node::OutStatement(val) = expr.as_ref() {
@@ -323,7 +369,7 @@ impl Compiler {
             patch_execute!(self.instructions, i, Inst::JUMP(block_end));
         }
 
-        self.instructions.push(Inst::POP_SCOPE);
+        self.pop_scope();
     }
 
     pub fn compile_member_access(&mut self, expr: &Box<Node>, member: &Box<Node>) {
@@ -367,14 +413,14 @@ impl Compiler {
         let mut handler = |condition: &Node, block: &Node| {
             self.comment("If statement handler start:");
 
-            self.instructions.push(Inst::PUSH_SCOPE);
+            self.push_scope();
 
             self.compile_node(&condition);
             let jump_if_false = patch!(self.instructions);
 
             self.compile_node(&block);
 
-            self.instructions.push(Inst::POP_SCOPE);
+            self.pop_scope();
 
             if_end_jumps.push(patch!(self.instructions));
 
@@ -485,7 +531,7 @@ impl Compiler {
 
         self.comment("Function def start:");
 
-        self.instructions.push(Inst::PUSH_SCOPE);
+        self.push_scope();
 
         for (arg_name, _, default_value) in args.iter().rev() {
             self.instructions.push(Inst::DEFAULT_NIL);
@@ -502,7 +548,7 @@ impl Compiler {
         self.compile_node(block);
 
         self.instructions.push(Inst::RETURN);
-        self.instructions.push(Inst::POP_SCOPE);
+        self.pop_scope();
 
         self.comment("Function def end");
 
@@ -549,7 +595,7 @@ impl Compiler {
     pub fn compile_for(&mut self, var_name: &Rc<String>, expr: &Box<Node>, block: &Box<Node>) {
         self.comment("For loop start:");
 
-        self.instructions.push(Inst::PUSH_SCOPE);
+        self.push_scope();
 
         self.compile_node(&*expr);
         self.instructions.push(Inst::GET_ITER);
@@ -577,7 +623,7 @@ impl Compiler {
             loop_start_index
         );
 
-        self.instructions.push(Inst::POP_SCOPE);
+        self.pop_scope();
         self.instructions.push(Inst::DEFAULT_NIL);
         self.comment("For loop end");
     }
@@ -630,6 +676,23 @@ impl Compiler {
         }
 
         self.instructions.push(Inst::DEFAULT_NIL);
+    }
+
+    pub fn compile_using(&mut self, sequence: &Vec<String>, _wildcard: bool) {
+        for (index, item) in sequence.iter().enumerate() {
+            if index == 0 {
+                let id = self.intern(item);
+                self.instructions.push(Inst::LOAD(id));
+            } else {
+                self.instructions
+                    .push(Inst::PUSH(Value::String(TString::new(item.clone()))));
+                self.instructions.push(Inst::GET_PROP);
+            }
+
+            if index == sequence.len() - 1 {
+                self.emit_store_local(item, false);
+            }
+        }
     }
 }
 

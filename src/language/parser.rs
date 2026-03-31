@@ -76,6 +76,7 @@ impl Parser {
         match self.current()?.kind {
             TokenKind::CLASS => self.parse_class_def(),
             TokenKind::FN => self.parse_function_def(false),
+            TokenKind::USING => self.parse_using(),
 
             _ => {
                 let expr = self.parse_expression()?;
@@ -701,6 +702,40 @@ impl Parser {
             values,
             is_const,
         })
+    }
+
+    fn parse_using(&mut self) -> NodeResult {
+        self.advance()?;
+        self.skip_new_lines();
+
+        let mut sequence = vec![];
+        let mut wildcard = false;
+
+        loop {
+            let token = self.expect_and_consume(TokenKind::Identifier)?;
+            sequence.push(token.get_text(&self.source));
+
+            if let Ok(next) = self.current() {
+                if matches!(next.kind, TokenKind::NEWLINE | TokenKind::SEMI) {
+                    self.advance()?;
+                    break;
+                } else if matches!(next.kind, TokenKind::DOUBLECOLON | TokenKind::DOT) {
+                    self.advance()?;
+                    if let Ok(next) = self.current()
+                        && matches!(next.kind, TokenKind::STAR)
+                    {
+                        wildcard = true;
+                        self.advance()?;
+                        break;
+                    }
+                    continue;
+                }
+            }
+			
+            break;
+        }
+
+        Ok(Node::UsingStatement { sequence, wildcard })
     }
 
     fn parse_block(&mut self) -> NodeResult {

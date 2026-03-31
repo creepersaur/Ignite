@@ -171,6 +171,7 @@ impl Lexer {
             "else" => ELSE,
             "class" => CLASS,
             "match" => MATCH,
+            "using" => USING,
             // "struct" => STRUCT,
             // "interface" => INTERFACE,
 
