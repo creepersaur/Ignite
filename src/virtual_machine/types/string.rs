@@ -48,7 +48,7 @@ impl IMemberAccessible for TString {
 
         if let Value::String(member) = member {
             if STRING_FUNCTIONS.contains(&&*member.0) {
-                return lib_function!(self, "string", member.0.clone(), 1, Value::String);
+                return lib_function!(self, "string", member.0.clone(), Value::String);
             }
         }
 

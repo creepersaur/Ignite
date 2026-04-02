@@ -34,20 +34,18 @@ macro_rules! hashmap {
 
 #[macro_export]
 macro_rules! lib_function {
-    ($this:expr, $lib:expr, $member:expr, $args:expr, $val:expr) => {
+    ($this:expr, $lib:expr, $member:expr, $val:expr) => {
         Value::Function(TFunction::with_lib(
             rc!($lib),
             $member,
-            $args,
             Some(Box::new({ $val }($this.clone()))),
         ))
     };
 
-    ($lib:expr, $member:expr, $args:expr, $val:expr) => {
+    ($lib:expr, $member:expr) => {
         Value::Function(TFunction::with_lib(
             rc!($lib),
             rc!($member),
-            $args,
             None,
         ))
     };

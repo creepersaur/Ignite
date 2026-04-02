@@ -68,7 +68,6 @@ pub enum Inst {
 
     CALL(usize),                          // ✅
     CALL_VOID(usize),                     // ✅
-    CALL_BUILTIN(Rc<String>, usize),      // ✅
     RETURN,                               // ✅
 
     // Get iterator (for loop)

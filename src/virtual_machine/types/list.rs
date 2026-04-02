@@ -5,9 +5,9 @@ use crate::{
     misc::to_index::to_index,
     rc,
     virtual_machine::{
-        traits::member_accessible::IMemberAccessible, types::function::TFunction,
         libs::list_lib::LIST_FUNCTIONS, libs::tuple_lib::TUPLE_FUNCTIONS,
-        value::Value, vm::VM,
+        traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value,
+        vm::VM,
     },
 };
 use bincode::{Decode, Encode};
@@ -54,12 +54,12 @@ impl IMemberAccessible for TList {
             match self.is_tuple {
                 true => {
                     if TUPLE_FUNCTIONS.contains(&&*member.0) {
-                        return lib_function!(self, "tuple", member.0.clone(), 1, Value::Tuple);
+                        return lib_function!(self, "tuple", member.0.clone(), Value::Tuple);
                     }
                 }
                 false => {
                     if LIST_FUNCTIONS.contains(&&*member.0) {
-                        return lib_function!(self, "list", member.0.clone(), 1, Value::List);
+                        return lib_function!(self, "list", member.0.clone(), Value::List);
                     }
                 }
             }

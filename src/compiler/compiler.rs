@@ -3,7 +3,6 @@ use crate::{
     language::{nodes::Node, token::TokenKind},
     patch, patch_execute, rc,
     virtual_machine::{
-        builtin::BUILTINS,
         inst::Inst,
         types::{function::TFunction, list::TList, string::TString},
         value::Value,
@@ -420,15 +419,8 @@ impl Compiler {
             self.compile_node(i);
         }
 
-        if let Node::Variable(x) = &**target
-            && BUILTINS.contains(&&***x)
-        {
-            self.instructions
-                .push(Inst::CALL_BUILTIN(x.clone(), args.len()));
-        } else {
-            self.compile_node(&**target);
-            self.instructions.push(Inst::CALL(args.len()));
-        }
+        self.compile_node(&**target);
+        self.instructions.push(Inst::CALL(args.len()));
     }
 
     pub fn compile_if_statement(
@@ -587,7 +579,7 @@ impl Compiler {
         patch_execute!(
             self.instructions,
             func_value,
-            Inst::PUSH(Value::Function(TFunction::new(func_start, args.len())))
+            Inst::PUSH(Value::Function(TFunction::new(func_start)))
         );
 
         patch_execute!(

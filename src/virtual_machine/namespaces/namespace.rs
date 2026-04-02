@@ -94,10 +94,10 @@ impl IMemberAccessible for TNamespace {
 
 #[macro_export]
 macro_rules! namespace_lib_function {
-    ($namespace:expr, $lib:expr, $func:expr, $args:expr, $return_type:expr) => {
+    ($namespace:expr, $lib:expr, $func:expr) => {
         $namespace.env.insert(
             std::rc::Rc::from($func),
-            (lib_function!($lib, $func, $args, $return_type), true),
+            (lib_function!($lib, $func), true),
         );
     };
 }

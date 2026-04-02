@@ -1,21 +1,19 @@
 use crate::{
-    hash_u64, rc,
-    virtual_machine::{
-        builtin::*,
+    hash_u64, lib_function, rc, virtual_machine::{
         chunk::Chunk,
         inst::Inst,
         libs::{
             dict_lib::DictLib, io_lib::IOLib, lib::Library, list_lib::ListLib, math_lib::MathLib,
-            string_lib::StringLib, tuple_lib::TupleLib,
+            string_lib::StringLib, tuple_lib::TupleLib, type_lib::TypeLib,
         },
         namespaces::standard_namespace::load_standard_namespace,
         traits::member_accessible::IMemberAccessible,
         types::{dict::TDict, function::TFunction, list::TList, string::TString},
         value::Value,
-    },
+    }
 };
 use simply_colored::*;
-use std::{cell::RefCell, collections::HashMap, panic::UnwindSafe, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 const ORANGE: &str = "\x1b[38;2;255;150;60m";
 
@@ -33,14 +31,9 @@ pub struct VM {
     pub intern_table: HashMap<u64, Rc<str>>,
 }
 
-impl UnwindSafe for VM {}
-
 #[allow(unused)]
 impl VM {
     pub fn new() -> Self {
-        let mut globals = HashMap::new();
-        globals.insert(hash_u64!("Std"), (load_standard_namespace(), true));
-
         Self {
             pos: 0,
             instructions: vec![],
@@ -48,7 +41,7 @@ impl VM {
             call_stack: Vec::with_capacity(100),
             scope_stack: vec![],
             constants: Vec::with_capacity(100),
-            globals,
+            globals: Self::initialize_globals(),
             locals: vec![HashMap::new()],
             libraries: Self::initialize_libs(),
             iterators: vec![],
@@ -56,10 +49,34 @@ impl VM {
         }
     }
 
+    pub fn initialize_globals() -> HashMap<u64, (Value, bool)> {
+        let mut globals = HashMap::new();
+        globals.insert(hash_u64!("Std"), (load_standard_namespace(), true));
+
+        globals.insert(
+            hash_u64!("println"),
+            (
+                lib_function!("io", "write_line"),
+                false,
+            ),
+        );
+
+        globals.insert(
+            hash_u64!("print"),
+            (
+                lib_function!("io", "write"),
+                false,
+            ),
+        );
+
+        globals
+    }
+
     pub fn initialize_libs() -> HashMap<u64, Box<dyn Library>> {
         let mut libs: HashMap<_, Box<dyn Library>> = HashMap::new();
 
         // types
+        libs.insert(hash_u64!("type"), Box::new(TypeLib));
         libs.insert(hash_u64!("string"), Box::new(StringLib));
         libs.insert(hash_u64!("list"), Box::new(ListLib));
         libs.insert(hash_u64!("tuple"), Box::new(TupleLib));
@@ -112,7 +129,7 @@ impl VM {
     pub fn call_function(&mut self, f: TFunction, mut args_count: usize) {
         if let Some(this) = f.this {
             self.stack.push(*this);
-			args_count += 1;
+            args_count += 1;
         }
         let mut args: Vec<_> = (0..args_count).map(|_| self.pop()).collect();
 
@@ -611,7 +628,7 @@ impl VM {
                 }
 
                 Inst::CALL(args) => {
-					let arg_count = *args;
+                    let arg_count = *args;
                     let func = self.pop();
 
                     if let Value::Function(f) = func {
@@ -621,7 +638,7 @@ impl VM {
                     }
                 }
                 Inst::CALL_VOID(args) => {
-					let arg_count = *args;
+                    let arg_count = *args;
                     let func = self.pop();
 
                     if let Value::Function(f) = func {
@@ -631,16 +648,6 @@ impl VM {
                         panic!("Tried calling (void) non-function: {func:?}")
                     }
                 }
-                Inst::CALL_BUILTIN(name, arg_count) => match &***name {
-                    // types
-                    "typeof" => builtin_typeof(self),
-                    "string" => builtin_string(self),
-                    "number" => builtin_number(self),
-                    "bool" => builtin_bool(self),
-                    "char" => builtin_char(self),
-
-                    _ => panic!("Unknown built-in: {name}"),
-                },
                 Inst::RETURN => {
                     if let Some(last) = self.call_stack.last() {
                         self.pos = *last;
