@@ -464,7 +464,7 @@ impl Parser {
             }
 
             // USE PARSE_LOGICAL BECAUSE PARSE_EXPRESSION IS TOO HIGH LEVEL
-            let key_base = self.parse_logical()?;
+            let key_base = self.parse_ternary_op()?;
             self.skip_new_lines();
 
             let (key, value) = if let Ok(next) = self.current()
@@ -512,7 +512,7 @@ impl Parser {
     fn parse_expression(&mut self) -> NodeResult {
         self.skip_new_lines();
 
-        let expr = self.parse_logical()?;
+        let expr = self.parse_ternary_op()?;
 
         self.skip_new_lines();
 
@@ -565,6 +565,36 @@ impl Parser {
         return Ok(expr);
     }
 
+    fn parse_ternary_op(&mut self) -> NodeResult {
+        let mut condition = self.parse_elvis_coalescing()?;
+
+        while let Ok(next) = self.current() {
+            if next.kind != TokenKind::QUESTION {
+                break;
+            }
+
+            self.advance()?;
+            let true_expr = self.parse_elvis_coalescing()?;
+
+            if let Ok(next) = self.current()
+                && next.kind != TokenKind::COLON
+            {
+                break;
+            }
+
+            self.advance()?;
+            let false_expr = self.parse_elvis_coalescing()?;
+
+            condition = Node::TernaryOp {
+                condition: Box::new(condition),
+                true_expr: Box::new(true_expr),
+                false_expr: Box::new(false_expr),
+            };
+        }
+
+        Ok(condition)
+    }
+
     fn parse_elvis_coalescing(&mut self) -> NodeResult {
         let mut left = self.parse_null_coalescing()?;
 
@@ -573,10 +603,10 @@ impl Parser {
                 break;
             }
 
-            let op = self.advance()?.kind;
+            self.advance()?;
             let right = self.parse_null_coalescing()?;
 
-            left = Node::NullCoalesce {
+            left = Node::ElvisCoalesce {
                 left: Box::new(left),
                 right: Box::new(right),
             };
@@ -593,7 +623,7 @@ impl Parser {
                 break;
             }
 
-            let op = self.advance()?.kind;
+            self.advance()?;
             let right = self.parse_logical()?;
 
             left = Node::NullCoalesce {
@@ -935,7 +965,6 @@ impl Parser {
                 .to_string()))
         };
 
-        self.skip_new_lines();
         self.expect_and_consume(TokenKind::LPAREN)?;
 
         let mut args = vec![];

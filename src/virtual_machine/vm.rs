@@ -54,17 +54,26 @@ impl VM {
         let mut globals = HashMap::new();
         globals.insert(hash_u64!("Std"), (load_standard_namespace(), true));
 
-		// Global Builtins
+        // Global Builtins
         globals.insert(
             hash_u64!("println"),
             (lib_function!("io", "write_line"), false),
         );
         globals.insert(hash_u64!("print"), (lib_function!("io", "write"), false));
-        globals.insert(hash_u64!("typeof"), (lib_function!("type", "typeof"), false));
-        globals.insert(hash_u64!("number"), (lib_function!("type", "number"), false));
+        globals.insert(
+            hash_u64!("typeof"),
+            (lib_function!("type", "typeof"), false),
+        );
+        globals.insert(
+            hash_u64!("number"),
+            (lib_function!("type", "number"), false),
+        );
         globals.insert(hash_u64!("char"), (lib_function!("type", "char"), false));
         globals.insert(hash_u64!("bool"), (lib_function!("type", "bool"), false));
-        globals.insert(hash_u64!("string"), (lib_function!("type", "typeof"), false));
+        globals.insert(
+            hash_u64!("string"),
+            (lib_function!("type", "typeof"), false),
+        );
 
         return globals;
     }
@@ -621,6 +630,20 @@ impl VM {
                 Inst::JUMP_IF_FALSE(idx) => {
                     let idx = *idx;
                     if !self.pop().is_truthy() {
+                        self.pos = idx;
+                        continue;
+                    }
+                }
+                Inst::JUMP_IF_TRUE(idx) => {
+                    let idx = *idx;
+                    if self.pop().is_truthy() {
+                        self.pos = idx;
+                        continue;
+                    }
+                }
+                Inst::JUMP_IF_NOT_NIL(idx) => {
+                    let idx = *idx;
+                    if self.pop() != Value::NIL {
                         self.pos = idx;
                         continue;
                     }

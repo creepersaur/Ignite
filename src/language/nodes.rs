@@ -41,10 +41,21 @@ pub enum Node {
         right: Box<Node>,
         is_prefix: bool,
     },
-	
-	// Dedicated Coalescing
-    NullCoalesce { left: Box<Node>, right: Box<Node> }, // ??
-    ElvisCoalesce { left: Box<Node>, right: Box<Node> }, // ?:
+
+    // Dedicated Coalescing
+    NullCoalesce {
+        left: Box<Node>,
+        right: Box<Node>,
+    }, // ??
+    ElvisCoalesce {
+        left: Box<Node>,
+        right: Box<Node>,
+    }, // ?:
+    TernaryOp {
+        condition: Box<Node>,
+        true_expr: Box<Node>,
+        false_expr: Box<Node>,
+    },
 
     // MEMBER ACCESS
     MemberAccess {
@@ -58,7 +69,11 @@ pub enum Node {
         values: Vec<Option<Box<Node>>>,
         is_const: bool,
     },
-    UsingStatement { sequence: Vec<String>, imports: Vec<String>, wildcard: bool },
+    UsingStatement {
+        sequence: Vec<String>,
+        imports: Vec<String>,
+        wildcard: bool,
+    },
 
     SetVariable {
         target: Box<Node>,

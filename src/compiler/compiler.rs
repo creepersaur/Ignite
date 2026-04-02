@@ -122,7 +122,7 @@ impl Compiler {
 
             Node::ExprStmt(x) => {
                 self.compile_node(&*x);
-				self.instructions.push(Inst::TRY_POP);
+                self.instructions.push(Inst::TRY_POP);
             }
 
             Node::UnaryOp {
@@ -131,6 +131,13 @@ impl Compiler {
                 is_prefix,
             } => self.compile_unary_op(op, right, *is_prefix),
             Node::BinOp { left, right, op } => self.compile_bin_op(left, right, op),
+            Node::NullCoalesce { left, right } => self.compile_null_coalesce(left, right),
+            Node::ElvisCoalesce { left, right } => self.compile_elvis_coalesce(left, right),
+            Node::TernaryOp {
+                condition,
+                true_expr,
+                false_expr,
+            } => self.compile_ternary_op(condition, true_expr, false_expr),
 
             Node::LetStatement {
                 names,
@@ -355,6 +362,69 @@ impl Compiler {
 
             _ => panic!("Cannot compile unknown bin-op: `{op:?}`"),
         });
+    }
+
+    pub fn compile_null_coalesce(&mut self, left: &Box<Node>, right: &Box<Node>) {
+        self.compile_node(&**left);
+
+        self.instructions.push(Inst::DUP);
+
+        let jump_patch = patch!(self.instructions);
+
+        self.instructions.push(Inst::POP);
+        self.compile_node(&**right);
+
+        patch_execute!(
+            self.instructions,
+            jump_patch,
+            Inst::JUMP_IF_NOT_NIL(self.instructions.len())
+        );
+    }
+
+    pub fn compile_elvis_coalesce(&mut self, left: &Box<Node>, right: &Box<Node>) {
+        self.compile_node(&**left);
+
+        self.instructions.push(Inst::DUP);
+
+        let jump_patch = patch!(self.instructions);
+
+        self.instructions.push(Inst::POP);
+        self.compile_node(&**right);
+
+        patch_execute!(
+            self.instructions,
+            jump_patch,
+            Inst::JUMP_IF_TRUE(self.instructions.len())
+        );
+    }
+
+    pub fn compile_ternary_op(
+        &mut self,
+        condition: &Box<Node>,
+        true_expr: &Box<Node>,
+        false_expr: &Box<Node>,
+    ) {
+        self.compile_node(&**condition);
+
+        let jump_if_false = patch!(self.instructions);
+
+        self.compile_node(&**true_expr);
+
+        let jump_end = patch!(self.instructions);
+
+        patch_execute!(
+            self.instructions,
+            jump_if_false,
+            Inst::JUMP_IF_FALSE(self.instructions.len())
+        );
+
+        self.compile_node(&**false_expr);
+
+        patch_execute!(
+            self.instructions,
+            jump_end,
+            Inst::JUMP(self.instructions.len())
+        );
     }
 
     pub fn compile_let(

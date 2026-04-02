@@ -58,16 +58,18 @@ pub enum Inst {
     // Load from local or global
     LOAD(u64), // ✅
 
-    JUMP(usize),          // ✅
-    JUMP_IF_FALSE(usize), // ✅
+    JUMP(usize),            // ✅
+    JUMP_IF_FALSE(usize),   // ✅
+    JUMP_IF_TRUE(usize),    // ✅
+    JUMP_IF_NOT_NIL(usize), // ✅
 
     // Get/Set property (member access)
     GET_PROP, // ✅
     SET_PROP, // ✅
 
-    CALL(usize),                          // ✅
-    CALL_VOID(usize),                     // ✅
-    RETURN,                               // ✅
+    CALL(usize),      // ✅
+    CALL_VOID(usize), // ✅
+    RETURN,           // ✅
 
     // Get iterator (for loop)
     GET_ITER,        // ✅
