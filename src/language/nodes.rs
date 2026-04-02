@@ -41,6 +41,10 @@ pub enum Node {
         right: Box<Node>,
         is_prefix: bool,
     },
+	
+	// Dedicated Coalescing
+    NullCoalesce { left: Box<Node>, right: Box<Node> }, // ??
+    ElvisCoalesce { left: Box<Node>, right: Box<Node> }, // ?:
 
     // MEMBER ACCESS
     MemberAccess {

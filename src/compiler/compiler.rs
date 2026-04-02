@@ -122,6 +122,7 @@ impl Compiler {
 
             Node::ExprStmt(x) => {
                 self.compile_node(&*x);
+				self.instructions.push(Inst::TRY_POP);
             }
 
             Node::UnaryOp {

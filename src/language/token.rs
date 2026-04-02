@@ -87,10 +87,12 @@ pub enum TokenKind {
     OR,     // or, ||
     AND,    // and, &&
     COLON,
-    DOUBLECOLON, // ::
-    SEMI,        // ;
-    QUESTION,    // ?
-    TILDA,       // ~
+    DOUBLECOLON,    // ::
+    SEMI,           // ;
+    QUESTION,       // ?
+    DOUBLEQUESTION, // ??
+    ELVIS,          // ?:
+    TILDA,          // ~
     BACKTICK,
     PIPE,
     DOT,

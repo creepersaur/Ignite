@@ -565,6 +565,46 @@ impl Parser {
         return Ok(expr);
     }
 
+    fn parse_elvis_coalescing(&mut self) -> NodeResult {
+        let mut left = self.parse_null_coalescing()?;
+
+        while let Ok(next) = self.current() {
+            if next.kind != TokenKind::ELVIS {
+                break;
+            }
+
+            let op = self.advance()?.kind;
+            let right = self.parse_null_coalescing()?;
+
+            left = Node::NullCoalesce {
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn parse_null_coalescing(&mut self) -> NodeResult {
+        let mut left = self.parse_logical()?;
+
+        while let Ok(next) = self.current() {
+            if next.kind != TokenKind::DOUBLEQUESTION {
+                break;
+            }
+
+            let op = self.advance()?.kind;
+            let right = self.parse_logical()?;
+
+            left = Node::NullCoalesce {
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
     fn parse_logical(&mut self) -> NodeResult {
         self.parse_or()
     }

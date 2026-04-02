@@ -3,7 +3,7 @@ use crate::{
     language::{ast::AST, lexer::Lexer, parser::Parser},
     virtual_machine::vm::VM,
 };
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 #[allow(unused)]
 use std::{error::Error, fs, rc::Rc};
 
@@ -64,6 +64,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         if args.contains(&"opt".to_string()) {
             vm.constants = compiler.constants.clone();
             vm.instructions = compiler.instructions.clone();
+            vm.intern_table = compiler.intern_table.clone();
 
             if args.contains(&"inst".to_string()) {
                 println!("\n[Pre-optimization] Compiled instructions:");
@@ -96,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         println!("\nRunning:");
         println!("---------------------------");
-		let _ = catch_unwind(AssertUnwindSafe(|| vm.run(false, false)));
+        let _ = catch_unwind(AssertUnwindSafe(|| vm.run(false, false)));
 
         if args.contains(&"stack".to_string()) {
             println!("\nOutput VM Stack:");
