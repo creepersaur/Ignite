@@ -14,9 +14,9 @@ impl Compiler {
                 *inst = Inst::NOP;
             }
         }
-        
+
 		self.remove_nops();
-		
+
 		// remove last POP
         if matches!(self.instructions.last(), Some(Inst::TRY_POP | Inst::POP)) {
             self.instructions.pop();
@@ -79,11 +79,6 @@ impl Compiler {
                 (Inst::PUSH(_), Inst::POP | Inst::TRY_POP) => {
                     self.instructions[i] = Inst::COMMENT("optimized away PUSH".to_string());
                     self.instructions[i + 1] = Inst::COMMENT("optimized away POP".to_string());
-                    i += 2;
-                }
-                (Inst::CALL(args), Inst::TRY_POP | Inst::POP) => {
-                    self.instructions[i] = Inst::CALL_VOID(*args);
-                    self.instructions[i + 1] = Inst::NOP;
                     i += 2;
                 }
 

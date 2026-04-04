@@ -23,7 +23,7 @@ impl AST {
         }
     }
 
-    pub fn prune_ast(&mut self) {
+    pub fn optimize(&mut self) {
         for node in self.nodes.iter_mut() {
             Self::prune_node(node);
             *node = Self::fold_constants(node.clone());

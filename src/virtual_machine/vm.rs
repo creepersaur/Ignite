@@ -132,10 +132,10 @@ impl VM {
         self.constants.extend(constants);
     }
 
-    pub fn call_function(&mut self, f: TFunction, mut args_count: usize) {
+    pub fn call_function(&mut self, f: &TFunction, mut args_count: usize) {
         if let Some((library, method)) = f.handler {
-            if let Some(this) = f.this {
-                self.stack.push(*this);
+            if let Some(this) = &f.this {
+                self.stack.push(*this.clone());
                 args_count += 1;
             }
             let mut args: Vec<_> = (0..args_count).map(|_| self.pop()).collect();
@@ -557,7 +557,7 @@ impl VM {
                     let id = *id;
                     let depth = *depth;
                     let value = self.pop();
-                    self.locals[depth].insert(id, (value, false));
+					self.locals[depth].insert(id, (value, false));
                 }
                 Inst::LOAD_LOCAL { id, depth } => {
                     if let Some((val, _)) = self.locals[*depth].get(id) {
@@ -654,20 +654,9 @@ impl VM {
                     let func = self.pop();
 
                     if let Value::Function(f) = func {
-                        self.call_function(f, arg_count);
+                        self.call_function(&f, arg_count);
                     } else {
                         panic!("Tried calling non-function: {func:?}")
-                    }
-                }
-                Inst::CALL_VOID(args) => {
-                    let arg_count = *args;
-                    let func = self.pop();
-
-                    if let Value::Function(f) = func {
-                        self.call_function(f, arg_count);
-                        self.stack.pop();
-                    } else {
-                        panic!("Tried calling (void) non-function: {func:?}")
                     }
                 }
                 Inst::RETURN => {

@@ -38,7 +38,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let mut ast = AST::new(nodes);
-    ast.prune_ast();
+    if args.contains(&"opt".to_string()) {
+		ast.optimize();
+	}
     let nodes = ast.nodes;
 
     if args.contains(&"nodes".to_string()) {
@@ -104,6 +106,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("---------------------------");
             println!("{:#?}", vm.stack);
         }
+
+		if args.contains(&"trace".to_string()) {
+			println!("Last Instruction ({}): {:?}", vm.pos, vm.instructions[vm.pos]);
+		}
     }
 
     Ok(())

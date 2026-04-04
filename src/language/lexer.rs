@@ -22,7 +22,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(text: &str) -> Self {
         let mut new_lexer = Self {
-            chars: text.chars().collect::<Vec<_>>(),
+            chars: text.replace("\r", "\n").trim().chars().collect::<Vec<_>>(),
             pos: -1,
             cur_char: None,
         };
