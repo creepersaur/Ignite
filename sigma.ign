@@ -1,7 +1,0 @@
-fn hello(x, y) {
-	println(x)
-	println(y)
-}
-
-hello(10, 20)
-hello(10)

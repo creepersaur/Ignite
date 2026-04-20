@@ -5,8 +5,8 @@ use crate::{
     misc::to_index::to_index,
     rc,
     virtual_machine::{
-        traits::member_accessible::IMemberAccessible, types::function::TFunction,
-        libs::string_lib::STRING_FUNCTIONS, value::Value, vm::VM,
+        libs::types::string_lib::STRING_FUNCTIONS, traits::member_accessible::IMemberAccessible,
+        types::function::TFunction, value::Value, vm::VM,
     },
 };
 use bincode::{Decode, Encode};
@@ -19,7 +19,7 @@ impl TString {
         Self(Rc::from(s))
     }
 
-	#[allow(unused)]
+    #[allow(unused)]
     pub fn from_str(s: &str) -> Self {
         Self(Rc::from(s))
     }
@@ -50,6 +50,40 @@ impl IMemberAccessible for TString {
             if STRING_FUNCTIONS.contains(&&*member.0) {
                 return lib_function!(self, "string", member.0.clone(), Value::String);
             }
+        }
+
+        if let Value::Range {
+            start,
+            end,
+            step,
+            inclusive,
+        } = member
+        {
+            let chars: Vec<char> = self.0.chars().collect();
+            let len = chars.len();
+
+            let start_i = if let Value::Number(n) = start.as_ref() {
+                to_index(*n, len)
+            } else {
+                0
+            };
+
+            let end_i = if let Value::Number(n) = end.as_ref() {
+                let i = to_index(*n, len);
+                if *inclusive { i + 1 } else { i }
+            } else {
+                len
+            };
+
+            let step_by = if let Value::Number(n) = step.as_ref() {
+                (*n as usize).max(1)
+            } else {
+                1
+            };
+
+            let slice: String = chars[start_i..end_i].iter().step_by(step_by).collect();
+
+            return Value::String(TString::new(slice));
         }
 
         panic!("Cannot get member `{}` on {self:?}", member.to_string(true));

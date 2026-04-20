@@ -85,7 +85,7 @@ impl ListLib {
     }
 
     fn map(vm: &mut VM, args: Vec<Value>) -> Value {
-        let [func, list] = get_args!(args, 2);
+        let [list, func] = get_args!(args, 2);
         let mut new_array = vec![];
 
         if let Value::List(inner) = list {

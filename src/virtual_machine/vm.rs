@@ -3,10 +3,11 @@ use crate::{
     virtual_machine::{
         chunk::Chunk,
         inst::Inst,
-        libs::{
-            dict_lib::DictLib, io_lib::IOLib, lib::Library, list_lib::ListLib, math_lib::MathLib,
-            string_lib::StringLib, tuple_lib::TupleLib, type_lib::TypeLib,
+        libs::namespaces::{io_lib::IOLib, math_lib::MathLib},
+        libs::types::{
+            dict_lib::DictLib, list_lib::ListLib, string_lib::StringLib, tuple_lib::TupleLib,
         },
+        libs::{lib::Library, type_lib::TypeLib},
         namespaces::standard_namespace::load_standard_namespace,
         traits::member_accessible::IMemberAccessible,
         types::{dict::TDict, function::TFunction, list::TList, string::TString},
@@ -232,7 +233,7 @@ impl VM {
                 ORANGE
             };
 
-            print!("{MAGENTA}{i:>2}{RESET}\t{BLACK}{indent}");
+            print!("{MAGENTA}{i:>2}{RESET}   {BLACK}{indent}");
 
             if rest.is_empty() {
                 print!("{color}{opcode}{RESET}");
@@ -302,7 +303,7 @@ impl VM {
                 }
                 Inst::DEFAULT => {
                     let default_value = self.pop();
-                    let given_value = self.pop();
+                    let given_value = self.pop_or_nil();
 
                     if let Value::NIL = given_value {
                         self.stack.push(default_value);

@@ -4,7 +4,7 @@ use crate::{
     lib_function, rc,
     virtual_machine::{
         traits::member_accessible::IMemberAccessible, types::function::TFunction,
-        libs::dict_lib::DICT_FUNCTIONS, value::Value, vm::VM,
+        libs::types::dict_lib::DICT_FUNCTIONS, value::Value, vm::VM,
     },
 };
 use bincode::{Decode, Encode};

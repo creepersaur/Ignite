@@ -5,7 +5,7 @@ use crate::{
     misc::to_index::to_index,
     rc,
     virtual_machine::{
-        libs::list_lib::LIST_FUNCTIONS, libs::tuple_lib::TUPLE_FUNCTIONS,
+        libs::types::list_lib::LIST_FUNCTIONS, libs::types::tuple_lib::TUPLE_FUNCTIONS,
         traits::member_accessible::IMemberAccessible, types::function::TFunction, value::Value,
         vm::VM,
     },

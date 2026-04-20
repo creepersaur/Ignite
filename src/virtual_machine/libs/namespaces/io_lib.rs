@@ -8,7 +8,7 @@ use crate::{
 pub struct IOLib;
 
 impl IOLib {
-    // Geometry
+    // Input
     fn read_line(_vm: &mut VM, args: Vec<Value>) -> Value {
         let msg = args
             .iter()
@@ -46,6 +46,19 @@ impl IOLib {
 
         Value::String(TString::new(buf))
     }
+
+	// Output
+	fn clear(_vm: &mut VM, _args: Vec<Value>) -> Value {
+		print!("\x1B[2J\x1B[1;1H");
+
+		Value::NIL
+	}
+
+	fn reset(_vm: &mut VM, _args: Vec<Value>) -> Value {
+		print!("{esc}c", esc = 27 as char);
+
+		Value::NIL
+	}
 
 	fn write(_vm: &mut VM, args: Vec<Value>) -> Value {
         let msg = args
@@ -88,6 +101,8 @@ impl Library for IOLib {
             x if x == hash_u64!("read_line_raw") => Box::new(Self::read_line_raw),
 
             // OUTPUT
+            x if x == hash_u64!("clear") => Box::new(Self::clear),
+            x if x == hash_u64!("reset") => Box::new(Self::reset),
             x if x == hash_u64!("write") => Box::new(Self::write),
             x if x == hash_u64!("write_line") => Box::new(Self::write_line),
 

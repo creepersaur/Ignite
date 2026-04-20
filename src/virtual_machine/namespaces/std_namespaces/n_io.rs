@@ -9,11 +9,13 @@ use std::cell::RefCell;
 pub fn std_io() -> Value {
     let mut namespace = TNamespace::new("IO", true);
 
-	// Input
+    // Input
     namespace_lib_function!(namespace, "io", "read_line");
     namespace_lib_function!(namespace, "io", "read_line_raw");
 
-	// Output
+    // Output
+    namespace_lib_function!(namespace, "io", "clear");
+    namespace_lib_function!(namespace, "io", "reset");
     namespace_lib_function!(namespace, "io", "write");
     namespace_lib_function!(namespace, "io", "write_line");
 
