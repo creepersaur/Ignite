@@ -8,6 +8,8 @@ impl Compiler {
     pub fn optimize(&mut self) {
         self.replace_tostring();
         self.remove_load_pops();
+        self.remove_store_load_pairs();
+        self.trim_end_pops();
     }
 
     pub fn finalize_bytecode(&mut self) {
@@ -22,6 +24,16 @@ impl Compiler {
         // remove last POP
         if matches!(self.instructions.last(), Some(Inst::TRY_POP | Inst::POP)) {
             self.instructions.pop();
+        }
+    }
+
+    pub fn trim_end_pops(&mut self) {
+        while let Some(last) = self.instructions.last() {
+            if matches!(last, Inst::NOP | Inst::TRY_POP | Inst::POP) {
+                self.instructions.pop();
+            } else {
+                break;
+            }
         }
     }
 
@@ -152,6 +164,34 @@ impl Compiler {
                 }
 
                 _ => i += 1,
+            }
+        }
+    }
+
+    // STORE followed by LOAD instantly
+    pub fn remove_store_load_pairs(&mut self) {
+        let mut i = 0;
+        while i < self.instructions.len().saturating_sub(1) {
+            let is_redundant = match (&self.instructions[i], &self.instructions[i + 1]) {
+                (
+                    Inst::STORE_LOCAL {
+                        id: id_a,
+                        depth: depth_a,
+                    },
+                    Inst::LOAD_LOCAL {
+                        id: id_b,
+                        depth: depth_b,
+                    },
+                ) => *id_a == *id_b && *depth_a == *depth_b,
+                _ => false,
+            };
+
+            if is_redundant {
+                self.instructions[i + 1] = self.instructions[i].clone(); // shift STORE down
+                self.instructions[i] = Inst::DUP;
+                i += 2;
+            } else {
+                i += 1;
             }
         }
     }

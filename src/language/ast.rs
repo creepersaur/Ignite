@@ -149,6 +149,11 @@ impl AST {
                 Self::prune_node(target);
                 Self::prune_node(value);
             }
+            Node::EnumDef { items, .. } => {
+                for (_, value) in items.iter_mut() {
+                    Self::prune_node(value);
+                }
+            }
 
             _ => {}
         }
@@ -301,15 +306,15 @@ impl AST {
                             is_prefix,
                         },
                     },
-					Node::NIL => match op {
-						TokenKind::BANG => Node::BooleanLiteral(true),
+                    Node::NIL => match op {
+                        TokenKind::BANG => Node::BooleanLiteral(true),
 
                         _ => Node::UnaryOp {
                             op,
                             right: Box::new(Node::NIL),
                             is_prefix,
                         },
-					}
+                    },
 
                     _ => Node::UnaryOp {
                         op,
@@ -445,6 +450,14 @@ impl AST {
                 branches: branches
                     .into_iter()
                     .map(|(p, b)| (Self::fold_constants(p), Self::fold_constants(b)))
+                    .collect(),
+            },
+
+            Node::EnumDef { name, items } => Node::EnumDef {
+                name,
+                items: items
+                    .into_iter()
+                    .map(|(k, v)| (k, Self::fold_constants(v)))
                     .collect(),
             },
 

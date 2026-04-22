@@ -826,25 +826,23 @@ impl Parser {
             }
         }
 
-        self.expect_and_consume(TokenKind::EQUAL)?;
-
         let mut values = vec![];
 
-        for i in names.iter() {
-            values.push(Some(Box::new(self.parse_expression()?)));
+        if let Ok(next) = self.current()
+            && next.kind == TokenKind::EQUAL
+        {
+            self.advance()?;
 
-            if let Ok(next) = self.current()
-                && next.kind == TokenKind::COMMA
-            {
-                self.advance();
-            } else {
-                break;
-            }
-        }
+            for i in names.iter() {
+                values.push(Some(Box::new(self.parse_expression()?)));
 
-        if values.len() < names.len() {
-            for i in 0..(names.len() - values.len()) {
-                values.push(None);
+                if let Ok(next) = self.current()
+                    && next.kind == TokenKind::COMMA
+                {
+                    self.advance();
+                } else {
+                    break;
+                }
             }
         }
 
@@ -1351,7 +1349,7 @@ impl Parser {
         let mut id = 0;
 
         loop {
-			self.skip_new_lines();
+            self.skip_new_lines();
             if let Ok(next) = self.current()
                 && next.kind == TokenKind::RBRACE
             {

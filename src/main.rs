@@ -39,8 +39,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut ast = AST::new(nodes);
     if args.contains(&"opt".to_string()) {
-		ast.optimize();
-	}
+        ast.optimize();
+    }
     let nodes = ast.nodes;
 
     if args.contains(&"nodes".to_string()) {
@@ -71,7 +71,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             if args.contains(&"inst".to_string()) {
                 println!("\n[Pre-optimization] Compiled instructions:");
                 println!("---------------------------");
-                vm.print_instructions();
+
+                if args.contains(&"stack".to_string()) {
+                    vm.print_instructions(true);
+                } else {
+                    vm.print_instructions(false);
+                }
             }
 
             compiler.optimize();
@@ -89,7 +94,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     if args.contains(&"inst".to_string()) {
         println!("\nCompiled instructions:");
         println!("---------------------------");
-        vm.print_instructions();
+
+        if args.contains(&"stack".to_string()) {
+            vm.print_instructions(true);
+        } else {
+            vm.print_instructions(false);
+        }
     }
 
     if args.contains(&"bytecode".to_string()) {
@@ -101,15 +111,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("---------------------------");
         let _ = catch_unwind(AssertUnwindSafe(|| vm.run(false, false)));
 
-        if args.contains(&"stack".to_string()) {
-            println!("\nOutput VM Stack:");
-            println!("---------------------------");
-            println!("{:#?}", vm.stack);
+        if args.contains(&"trace".to_string()) {
+            println!(
+                "Last Instruction ({}): {:?}",
+                vm.pos, vm.instructions[vm.pos]
+            );
         }
-
-		if args.contains(&"trace".to_string()) {
-			println!("Last Instruction ({}): {:?}", vm.pos, vm.instructions[vm.pos]);
-		}
     }
 
     Ok(())

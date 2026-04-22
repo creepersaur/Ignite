@@ -588,8 +588,10 @@ impl Compiler {
             self.instructions.push(operator_inst);
             self.instructions.push(Inst::SET_VAR(hash_u64!(x.as_str())));
         } else if let Node::MemberAccess { expr, member } = &**target {
-            self.compile_node(&**value);
-            self.compile_node(&**expr);
+			self.compile_node(&**expr);
+            self.compile_node(&**member);
+			self.instructions.push(Inst::GET_PROP);
+			self.compile_node(&**value);
             self.instructions.push(operator_inst);
             self.compile_node(&**expr);
             self.compile_node(&**member);

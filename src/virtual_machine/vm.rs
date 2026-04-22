@@ -162,7 +162,7 @@ impl VM {
             .clone()
     }
 
-    pub fn print_instructions(&self) {
+    pub fn print_instructions(&self, stack_trace: bool) {
         let mut depth: i32 = 0;
 
         for (i, v) in self.instructions.iter().enumerate() {
@@ -608,7 +608,7 @@ impl VM {
                     } else if let Some((val, _)) = self.globals.get(name) {
                         self.stack.push(val.clone());
                     } else {
-                        panic!("Unknown local/global variable: {name}");
+                        panic!("Unknown local/global variable: {}", self.lookup_intern(*name));
                     }
                 }
                 Inst::SET_VAR(name) => {
