@@ -1,6 +1,8 @@
 <div align="center">
 
-![Ignite Logo](assets/ignite_logo.png=0.5x)
+<img alt="Ignite Logo"
+	src="assets/ignite_logo.png"
+	width="200">
 
 </div>
 
