@@ -162,7 +162,7 @@ impl VM {
             .clone()
     }
 
-    pub fn print_instructions(&self, stack_trace: bool) {
+    pub fn print_instructions(&self) {
         let mut depth: i32 = 0;
 
         for (i, v) in self.instructions.iter().enumerate() {
