@@ -58,7 +58,7 @@ pub enum TokenKind {
     USING,
     ENUM,
     // INTERFACE,
-    // STRUCT,
+    STRUCT,
 
     // Punctuation
     LPAREN, // Parenthesis ()

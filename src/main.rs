@@ -72,11 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("\n[Pre-optimization] Compiled instructions:");
                 println!("---------------------------");
 
-                if args.contains(&"stack".to_string()) {
-                    vm.print_instructions(true);
-                } else {
-                    vm.print_instructions(false);
-                }
+                vm.print_instructions();
             }
 
             compiler.optimize();
@@ -95,11 +91,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("\nCompiled instructions:");
         println!("---------------------------");
 
-        if args.contains(&"stack".to_string()) {
-            vm.print_instructions(true);
-        } else {
-            vm.print_instructions(false);
-        }
+        vm.print_instructions();
     }
 
     if args.contains(&"bytecode".to_string()) {

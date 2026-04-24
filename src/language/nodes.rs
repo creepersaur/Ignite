@@ -142,7 +142,7 @@ pub enum Node {
 
     StructDef {
         name: String,
-        types: Vec<(Rc<String>, Rc<String>)>, // (key, type)
+        fields: Vec<(String, String)>, // (key, type)
     },
 
     InterfaceDef {

@@ -40,21 +40,21 @@ pub enum Value {
 }
 
 impl ToString for Value {
-	fn to_string(&self) -> String {
-		self.to_string(false)
-	}
+    fn to_string(&self) -> String {
+        self.to_string(false)
+    }
 }
 
 impl ToString for &Value {
-	fn to_string(&self) -> String {
-		(*self).to_string(false)
-	}
+    fn to_string(&self) -> String {
+        (*self).to_string(false)
+    }
 }
 
 impl Value {
-	pub fn string(x: impl ToString) -> Value {
-		Value::String(TString::new(x.to_string()))
-	}
+    pub fn string(x: impl ToString) -> Value {
+        Value::String(TString::new(x.to_string()))
+    }
 
     pub fn get_type(&self) -> String {
         match self {
@@ -205,6 +205,20 @@ impl Value {
             *x
         } else {
             panic!("Cannot convert `{self:?}` to number.")
+        }
+    }
+
+    fn type_matches(&self, type_hint: &str) -> bool {
+        match type_hint {
+            "number" => matches!(self, Value::Number(_)),
+            "string" => matches!(self, Value::String(_)),
+            "bool" => matches!(self, Value::Bool(_)),
+            "char" => matches!(self, Value::Char(_)),
+            "list" => matches!(self, Value::List(_)),
+            "dict" => matches!(self, Value::Dict(_)),
+            "any" => true,
+            // other check (nothing)
+            _ => true,
         }
     }
 }

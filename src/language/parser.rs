@@ -71,6 +71,41 @@ impl Parser {
         }
     }
 
+    fn parse_surrounded(
+        &mut self,
+        left: TokenKind,
+        right: TokenKind,
+        separator: Option<TokenKind>,
+        mut f: impl FnMut(&mut Self) -> Result<(), String>,
+    ) -> Result<(), String> {
+        self.expect_and_consume(left)?;
+
+        loop {
+            self.skip_new_lines();
+            if let Ok(next) = self.current()
+                && next.kind == right
+            {
+                break;
+            }
+
+            f(self)?;
+
+            if let Some(ref sep) = separator {
+                if let Ok(next) = self.current()
+                    && next.kind == *sep
+                {
+                    self.advance()?;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect_and_consume(right)?;
+
+        Ok(())
+    }
+
     pub fn parse(&mut self) -> NodeResult {
         self.skip_new_lines();
 
@@ -79,6 +114,7 @@ impl Parser {
             TokenKind::FN => self.parse_function_def(false),
             TokenKind::USING => self.parse_using(),
             TokenKind::ENUM => self.parse_enum(),
+            TokenKind::STRUCT => self.parse_struct_def(),
 
             _ => {
                 let expr = self.parse_expression()?;
@@ -961,61 +997,43 @@ impl Parser {
                 .to_string()))
         };
 
-        self.expect_and_consume(TokenKind::LPAREN)?;
-
         let mut args = vec![];
 
-        loop {
-            self.skip_new_lines();
-
-            if let Ok(next) = self.current() {
-                if next.kind == TokenKind::RPAREN {
-                    break;
-                }
-            } else {
-                return Err(format!(
-                    "Unexpected end of input while parsing function arguments."
-                ));
-            }
-
-            let arg_name = self
-                .expect_and_consume(TokenKind::Identifier)?
-                .get_text(&self.source)
-                .to_string();
-
-            let arg_type = if let Ok(next) = self.current()
-                && next.kind == TokenKind::COLON
-            {
-                self.expect_and_consume(TokenKind::COLON)?;
-                Some(rc!(self
+        self.parse_surrounded(
+            TokenKind::LPAREN,
+            TokenKind::RPAREN,
+            Some(TokenKind::COMMA),
+            |this| {
+                let arg_name = this
                     .expect_and_consume(TokenKind::Identifier)?
-                    .get_text(&self.source)
-                    .to_string()))
-            } else {
-                None
-            };
+                    .get_text(&this.source)
+                    .to_string();
 
-            let mut default_value = None;
-            if let Ok(x) = self.current()
-                && x.kind == TokenKind::EQUAL
-            {
-                self.advance();
-                default_value = Some(self.parse_expression()?);
-            }
+                let arg_type = if let Ok(next) = this.current()
+                    && next.kind == TokenKind::COLON
+                {
+                    this.expect_and_consume(TokenKind::COLON)?;
+                    Some(rc!(this
+                        .expect_and_consume(TokenKind::Identifier)?
+                        .get_text(&this.source)
+                        .to_string()))
+                } else {
+                    None
+                };
 
-            args.push((rc!(arg_name), arg_type, default_value));
+                let mut default_value = None;
+                if let Ok(x) = this.current()
+                    && x.kind == TokenKind::EQUAL
+                {
+                    this.advance();
+                    default_value = Some(this.parse_expression()?);
+                }
 
-            self.skip_new_lines();
-            if let Ok(next) = self.current()
-                && next.kind == TokenKind::COMMA
-            {
-                self.advance()?;
-            } else {
-                break;
-            }
-        }
+                args.push((rc!(arg_name), arg_type, default_value));
 
-        self.expect_and_consume(TokenKind::RPAREN)?;
+                Ok(())
+            },
+        )?;
 
         let return_type = if let Ok(next) = self.current()
             && next.kind == TokenKind::ARROW
@@ -1294,41 +1312,22 @@ impl Parser {
 
         let mut branches = vec![];
 
-        self.skip_new_lines();
-        self.expect_and_consume(TokenKind::LBRACE)?;
+        self.parse_surrounded(
+            TokenKind::LBRACE,
+            TokenKind::RBRACE,
+            Some(TokenKind::COMMA),
+            |this| {
+                let condition = this.parse_expression()?;
+                this.skip_new_lines();
+                this.expect_and_consume(TokenKind::FATARROW);
 
-        loop {
-            self.skip_new_lines();
+                let value = this.parse_expression()?;
 
-            if let Ok(next) = self.current() {
-                if next.kind == TokenKind::RBRACE {
-                    break;
-                }
-            } else {
-                return Err(format!(
-                    "Unexpected end of input while parsing match branches."
-                ));
-            }
+                branches.push((condition, value));
 
-            let condition = self.parse_expression()?;
-            self.skip_new_lines();
-            self.expect_and_consume(TokenKind::FATARROW);
-
-            let value = self.parse_expression()?;
-
-            branches.push((condition, value));
-
-            self.skip_new_lines();
-            if let Ok(next) = self.current()
-                && next.kind == TokenKind::COMMA
-            {
-                self.advance()?;
-            } else {
-                break;
-            }
-        }
-
-        self.expect_and_consume(TokenKind::RBRACE)?;
+                Ok(())
+            },
+        )?;
 
         Ok(Node::MatchStatement {
             expr: Box::new(expr),
@@ -1348,42 +1347,65 @@ impl Parser {
         let mut items = vec![];
         let mut id = 0;
 
-        loop {
-            self.skip_new_lines();
-            if let Ok(next) = self.current()
-                && next.kind == TokenKind::RBRACE
-            {
-                break;
-            }
+        self.parse_surrounded(
+            TokenKind::LBRACE,
+            TokenKind::RBRACE,
+            Some(TokenKind::COMMA),
+            |this| {
+                let item_name = this
+                    .expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&this.source);
 
-            let item_name = self
-                .expect_and_consume(TokenKind::Identifier)?
-                .get_text(&self.source);
+                let item_value = if let Ok(next) = this.current()
+                    && next.kind == TokenKind::EQUAL
+                {
+                    this.advance()?;
+                    this.parse_expression()?
+                } else {
+                    let v = Node::NumberLiteral(id as f64);
+                    id += 1;
+                    v
+                };
 
-            let item_value = if let Ok(next) = self.current()
-                && next.kind == TokenKind::EQUAL
-            {
-                self.advance()?;
-                self.parse_expression()?
-            } else {
-                let v = Node::NumberLiteral(id as f64);
-                id += 1;
-                v
-            };
+                items.push((item_name, item_value));
 
-            items.push((item_name, item_value));
-
-            if let Ok(next) = self.current()
-                && next.kind == TokenKind::COMMA
-            {
-                self.advance()?;
-            } else {
-                break;
-            }
-        }
-
-        self.expect_and_consume(TokenKind::RBRACE)?;
+                Ok(())
+            },
+        )?;
 
         Ok(Node::EnumDef { name, items })
+    }
+
+    fn parse_struct_def(&mut self) -> NodeResult {
+        self.advance()?;
+
+        let name = self
+            .expect_and_consume(TokenKind::Identifier)?
+            .get_text(&self.source);
+
+        let mut fields = vec![];
+
+        self.parse_surrounded(
+            TokenKind::LBRACE,
+            TokenKind::RBRACE,
+            Some(TokenKind::COMMA),
+            |this| {
+                let field_name = this
+                    .expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&this.source);
+
+                this.expect_and_consume(TokenKind::COLON);
+
+                let field_type = this
+                    .expect_and_consume(TokenKind::Identifier)?
+                    .get_text(&this.source);
+
+                fields.push((field_name, field_type));
+
+                Ok(())
+            },
+        )?;
+
+        Ok(Node::StructDef { name, fields })
     }
 }
