@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::current};
 
 use crate::{
     language::{
@@ -523,6 +523,15 @@ impl Parser {
 
     fn parse_struct_init(&mut self, target: Node) -> NodeResult {
         let mut data = vec![];
+
+        if self.pos > 0 {
+            if !matches!(
+                self.tokens[self.pos as usize - 1].kind,
+                TokenKind::Identifier
+            ) {
+                return Ok(target);
+            }
+        }
 
         self.parse_surrounded(
             TokenKind::LBRACE,

@@ -255,12 +255,14 @@ impl Lexer {
             }
         }
 
+		// Numbers
         if let Ok(x) = text.parse::<f64>() {
             if x.is_finite() {
                 return NumberLiteral(x);
             }
         }
 
+		// Booleans
         if let Ok(x) = text.parse::<bool>() {
             return BooleanLiteral(x);
         } else if text.starts_with('"') && text.ends_with('"') {

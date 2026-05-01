@@ -37,7 +37,7 @@ pub struct VM {
     pub libraries: HashMap<u64, Box<dyn Library>>,
     pub iterators: Vec<(Value, usize)>,
     pub intern_table: HashMap<u64, Rc<str>>,
-	pub expose_interns: bool
+    pub expose_interns: bool,
 }
 
 #[allow(unused)]
@@ -55,7 +55,7 @@ impl VM {
             libraries: Self::initialize_libs(),
             iterators: vec![],
             intern_table: HashMap::new(),
-			expose_interns: true
+            expose_interns: true,
         }
     }
 
@@ -174,18 +174,6 @@ impl VM {
         let mut depth: i32 = 0;
 
         for (i, v) in self.instructions.iter().enumerate() {
-            if let Inst::COMMENT(x) = v {
-                println!(
-                    "{BLACK}  \t{}--- {x} ---{RESET}",
-                    format!(
-                        "{}{}",
-                        if depth < 0 { RED } else { DIM_BLACK },
-                        "|  ".repeat(depth.abs() as usize)
-                    ),
-                );
-                continue;
-            }
-
             if let Inst::POP_SCOPE = v {
                 depth -= 1;
             }
@@ -195,6 +183,18 @@ impl VM {
                 if depth < 0 { RED } else { DIM_BLACK },
                 "|  ".repeat(depth.abs() as usize)
             );
+
+            if let Inst::COMMENT(x) = v {
+                println!(
+                    "{BLACK}\t {}--- {x} ---{RESET}",
+                    format!(
+                        "{}{}",
+                        if depth < 0 { RED } else { DIM_BLACK },
+                        "|  ".repeat(depth.abs() as usize)
+                    ),
+                );
+                continue;
+            }
 
             // Resolve u64 instructions to human-readable display strings
             let display = match v {
@@ -299,17 +299,17 @@ impl VM {
 
 // RUNNING
 impl VM {
-	pub fn pre_run_pass(&mut self) {
-		self.fold_constants();
-	}
+    pub fn pre_run_pass(&mut self) {
+        self.fold_constants();
+    }
 
-	pub fn fold_constants(&mut self) {
-		for inst in &mut self.instructions {
-			if let Inst::LOAD_CONST(idx) = inst {
-				*inst = Inst::PUSH(self.constants[*idx].clone());
-			}
-		}
-	}
+    pub fn fold_constants(&mut self) {
+        for inst in &mut self.instructions {
+            if let Inst::LOAD_CONST(idx) = inst {
+                *inst = Inst::PUSH(self.constants[*idx].clone());
+            }
+        }
+    }
 
     pub fn run(&mut self, debug: bool, stop_at_return: bool) {
         let instructions = std::mem::take(&mut self.instructions);

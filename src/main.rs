@@ -109,7 +109,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         println!("\nRunning:");
         println!("---------------------------");
-        let _ = catch_unwind(AssertUnwindSafe(|| vm.run(false, false)));
+
+        if args.contains(&"bench".to_string()) {
+            bench(&mut vm);
+        } else {
+            let _ = catch_unwind(AssertUnwindSafe(|| vm.run(false, false)));
+        }
 
         if args.contains(&"trace".to_string()) {
             println!(
@@ -120,4 +125,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn bench(vm: &mut VM) {
+    let runs = 1000;
+    let start = std::time::Instant::now();
+    for _ in 0..runs {
+        let _ = catch_unwind(AssertUnwindSafe(|| vm.run(false, false)));
+    }
+    let avg = start.elapsed() / runs;
+    println!("avg: {:?}", avg);
 }
