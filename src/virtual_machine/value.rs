@@ -8,7 +8,10 @@ use std::{
 
 use crate::virtual_machine::{
     namespaces::namespace::TNamespace,
-    types::{dict::TDict, r#enum::TEnum, function::TFunction, list::TList, string::TString},
+    types::{
+        dict::TDict, r#enum::TEnum, function::TFunction, list::TList, string::TString,
+        r#struct::TStruct, structdef::TStructDef,
+    },
 };
 
 #[allow(unused)]
@@ -26,6 +29,9 @@ pub enum Value {
     List(TList),
     Tuple(TList),
     Dict(TDict),
+
+    Struct(TStruct),
+    StructDef(Rc<TStructDef>),
 
     // Namespaces
     Namespace(Rc<RefCell<TNamespace>>),
@@ -70,6 +76,8 @@ impl Value {
             Value::Namespace(_) => "namespace",
             Value::Enum(_) => "enum",
             Value::Range { .. } => "range",
+            Value::StructDef(..) => "structdef",
+            Value::Struct(data) => &data.base.name,
         }
         .to_owned()
     }
@@ -189,6 +197,30 @@ impl Value {
                 end.to_string(true),
                 step.to_string(true),
             ),
+
+            Value::StructDef(def) => format!("structdef:{}", def.name),
+            Value::Struct(data) => format!(
+                "{} {{ {} }}",
+                data.base.name,
+                data.values
+                    .borrow()
+                    .iter()
+                    .map(|(k, v)| {
+                        let value = if let Value::Struct(val) = v {
+                            if data.values.as_ptr() == val.values.as_ptr() {
+                                String::from("{...}")
+                            } else {
+                                v.to_string(true)
+                            }
+                        } else {
+                            v.to_string(true)
+                        };
+
+                        format!("{k}: {value}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 
@@ -208,7 +240,7 @@ impl Value {
         }
     }
 
-    fn type_matches(&self, type_hint: &str) -> bool {
+    pub fn type_matches(&self, type_hint: &str) -> bool {
         match type_hint {
             "number" => matches!(self, Value::Number(_)),
             "string" => matches!(self, Value::String(_)),
@@ -265,6 +297,15 @@ impl Hash for Value {
                 end.hash(state);
                 step.hash(state);
                 inclusive.hash(state);
+            }
+
+            Self::StructDef(def) => {
+                def.name.hash(state);
+                std::ptr::hash(Rc::as_ptr(&def.fields), state);
+            }
+            Self::Struct(def) => {
+                def.base.name.hash(state);
+                def.values.as_ptr().hash(state);
             }
         }
     }

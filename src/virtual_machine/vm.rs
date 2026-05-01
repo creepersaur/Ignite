@@ -13,7 +13,10 @@ use crate::{
         },
         namespaces::standard_namespace::load_standard_namespace,
         traits::member_accessible::IMemberAccessible,
-        types::{dict::TDict, r#enum::TEnum, function::TFunction, list::TList, string::TString},
+        types::{
+            dict::TDict, r#enum::TEnum, function::TFunction, list::TList, string::TString,
+            r#struct::TStruct,
+        },
         value::Value,
     },
 };
@@ -34,6 +37,7 @@ pub struct VM {
     pub libraries: HashMap<u64, Box<dyn Library>>,
     pub iterators: Vec<(Value, usize)>,
     pub intern_table: HashMap<u64, Rc<str>>,
+	pub expose_interns: bool
 }
 
 #[allow(unused)]
@@ -51,6 +55,7 @@ impl VM {
             libraries: Self::initialize_libs(),
             iterators: vec![],
             intern_table: HashMap::new(),
+			expose_interns: true
         }
     }
 
@@ -156,6 +161,9 @@ impl VM {
     }
 
     pub fn lookup_intern(&self, id: u64) -> Rc<str> {
+        if !self.expose_interns {
+            return rc!("<unknown>");
+        }
         self.intern_table
             .get(&id)
             .unwrap_or(&rc!("<unknown>"))
@@ -227,7 +235,12 @@ impl VM {
                 RED
             } else if matches!(
                 v,
-                Inst::LIST(_) | Inst::TUPLE(_) | Inst::DICT(_) | Inst::ENUM(..) | Inst::RANGE
+                Inst::LIST(_)
+                    | Inst::TUPLE(_)
+                    | Inst::DICT(_)
+                    | Inst::ENUM(..)
+                    | Inst::STRUCT(..)
+                    | Inst::RANGE
             ) {
                 GREEN
             } else if matches!(v, Inst::NOP) {
@@ -286,6 +299,18 @@ impl VM {
 
 // RUNNING
 impl VM {
+	pub fn pre_run_pass(&mut self) {
+		self.fold_constants();
+	}
+
+	pub fn fold_constants(&mut self) {
+		for inst in &mut self.instructions {
+			if let Inst::LOAD_CONST(idx) = inst {
+				*inst = Inst::PUSH(self.constants[*idx].clone());
+			}
+		}
+	}
+
     pub fn run(&mut self, debug: bool, stop_at_return: bool) {
         let instructions = std::mem::take(&mut self.instructions);
 
@@ -358,6 +383,39 @@ impl VM {
 
                     self.stack
                         .push(Value::Enum(TEnum::new(name.clone(), rc!(map))));
+                }
+                Inst::STRUCT(field_names) => {
+                    let base_value = self.pop();
+                    let base = if let Value::StructDef(base) = base_value {
+                        base
+                    } else {
+                        panic!("Can only intialize struct definitions")
+                    };
+
+                    let values = rc!(RefCell::new(
+                        field_names
+                            .iter()
+                            .map(|x| (x.clone(), self.pop()))
+                            .collect::<HashMap<_, _>>()
+                    ));
+
+                    for (name, value) in values.borrow().iter() {
+                        if let Some(v_type) = base.fields.get(&*name) {
+                            if !value.type_matches(v_type) {
+                                panic!(
+                                    "Field '{name}' expects type `{v_type}`, got `{}`.",
+                                    value.get_type()
+                                )
+                            }
+                        } else {
+                            panic!(
+                                "Tried setting unknown field on struct of base {}",
+                                base.name
+                            );
+                        }
+                    }
+
+                    self.stack.push(Value::Struct(TStruct::new(base, values)));
                 }
 
                 Inst::RANGE => {
@@ -608,7 +666,10 @@ impl VM {
                     } else if let Some((val, _)) = self.globals.get(name) {
                         self.stack.push(val.clone());
                     } else {
-                        panic!("Unknown local/global variable: {}", self.lookup_intern(*name));
+                        panic!(
+                            "Unknown local/global variable: {}",
+                            self.lookup_intern(*name)
+                        );
                     }
                 }
                 Inst::SET_VAR(name) => {
@@ -728,6 +789,11 @@ impl VM {
                             self.stack.push(value);
                         }
 
+                        Value::Struct(x) => {
+                            let value = x.get_member(self, &member);
+                            self.stack.push(value);
+                        }
+
                         _ => panic!("Cannot get property on `{target:?}`"),
                     }
                 }
@@ -751,6 +817,10 @@ impl VM {
 
                         Value::Namespace(x) => {
                             x.borrow_mut().set_member(&member, value);
+                        }
+
+                        Value::Struct(mut x) => {
+                            x.set_member(&member, value);
                         }
 
                         _ => panic!(

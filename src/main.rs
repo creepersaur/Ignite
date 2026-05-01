@@ -54,6 +54,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     /////////////////////
 
     let mut vm = VM::new();
+    if args.contains(&"no_expose".to_string()) {
+        vm.expose_interns = false;
+    }
+
     if args.contains(&"bc".to_string()) {
         vm.read_bytecode_file("bytecode.igb");
     } else if args.contains(&"bc2".to_string()) {
@@ -85,6 +89,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         vm.constants = compiler.constants;
         vm.instructions = compiler.instructions;
         vm.intern_table = compiler.intern_table;
+    }
+
+    if args.contains(&"pre_run".to_string()) {
+        vm.pre_run_pass();
     }
 
     if args.contains(&"inst".to_string()) {

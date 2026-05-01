@@ -480,28 +480,14 @@ impl Parser {
     }
 
     fn parse_dict(&mut self) -> NodeResult {
-        self.advance()?;
-
         let mut data = vec![];
 
-        loop {
-            self.skip_new_lines();
+        self.parse_surrounded(TokenKind::LBRACE, TokenKind::RBRACE, Some(TokenKind::COMMA), |this| {
+			// USE parse_ternary_op BECAUSE PARSE_EXPRESSION IS TOO HIGH LEVEL
+            let key_base = this.parse_ternary_op()?;
+            this.skip_new_lines();
 
-            if let Ok(next) = self.current() {
-                if next.kind == TokenKind::RBRACE {
-                    break;
-                }
-            } else {
-                return Err(format!(
-                    "Unexpected end of input [EOF] while parsing dict. Expected `]`."
-                ));
-            }
-
-            // USE PARSE_LOGICAL BECAUSE PARSE_EXPRESSION IS TOO HIGH LEVEL
-            let key_base = self.parse_ternary_op()?;
-            self.skip_new_lines();
-
-            let (key, value) = if let Ok(next) = self.current()
+            let (key, value) = if let Ok(next) = this.current()
                 && (next.kind == TokenKind::COMMA || next.kind == TokenKind::RBRACE)
             {
                 if let Node::Variable(ref x) = key_base {
@@ -511,36 +497,73 @@ impl Parser {
                         "Can only use variables in dict field init shorthand."
                     ));
                 }
-            } else if let Ok(next) = self.current()
+            } else if let Ok(next) = this.current()
                 && next.kind == TokenKind::EQUAL
             {
-                self.advance();
+                this.advance();
                 if let Node::Variable(x) = key_base {
-                    (Node::StringLiteral(x.to_string()), self.parse_expression()?)
+                    (Node::StringLiteral(x.to_string()), this.parse_expression()?)
                 } else {
                     return Err(format!(
                         "Expected identifier when parsing dict key. Have you tried using a colon (:)?"
                     ));
                 }
             } else {
-                self.expect_and_consume(TokenKind::COLON)?;
-                (key_base, self.parse_expression()?)
+                this.expect_and_consume(TokenKind::COLON)?;
+                (key_base, this.parse_expression()?)
             };
 
             data.push((key, value));
 
-            if let Ok(next) = self.current()
-                && next.kind == TokenKind::COMMA
-            {
-                self.advance()?;
-            } else {
-                break;
-            }
-        }
-
-        self.advance()?;
+			Ok(())
+		})?;
 
         Ok(Node::DictNode(data))
+    }
+
+    fn parse_struct_init(&mut self, target: Node) -> NodeResult {
+        let mut data = vec![];
+
+        self.parse_surrounded(
+            TokenKind::LBRACE,
+            TokenKind::RBRACE,
+            Some(TokenKind::COMMA),
+            |this| {
+
+			// USE parse_ternary_op BECAUSE PARSE_EXPRESSION IS TOO HIGH LEVEL
+            let key_base = this.parse_ternary_op()?;
+            this.skip_new_lines();
+
+            let (key, value) = if let Ok(next) = this.current()
+                && (next.kind == TokenKind::COMMA || next.kind == TokenKind::RBRACE)
+            {
+                if let Node::Variable(ref x) = key_base {
+                    (x.to_string(), key_base)
+                } else {
+                    return Err(format!(
+                        "Can only use variables in struct field field init shorthand."
+                    ));
+                }
+            } else {
+				this.advance();
+                if let Node::Variable(x) = key_base {
+                    (x.to_string(), this.parse_expression()?)
+                } else {
+                    return Err(format!(
+                        "Expected identifier when parsing struct field key. Have you tried using a colon (:)?"
+                    ));
+                }
+            };
+
+            data.push((key, value));
+
+			Ok(())
+	 } )?;
+
+        Ok(Node::StructInit {
+            target: Box::new(target),
+            fields: data,
+        })
     }
 
     fn parse_expression(&mut self) -> NodeResult {
@@ -552,7 +575,9 @@ impl Parser {
 
         if let Ok(next) = self.current() {
             match next.kind {
+                TokenKind::LBRACE => return self.parse_struct_init(expr),
                 TokenKind::EQUAL => return self.parse_set_variable(expr),
+
                 TokenKind::ADD_SH
                 | TokenKind::SUB_SH
                 | TokenKind::MUL_SH
@@ -561,6 +586,7 @@ impl Parser {
                 | TokenKind::POW_SH => {
                     return self.parse_shorthand_assignment(expr, next.kind);
                 }
+
                 _ => {}
             }
         }

@@ -4,7 +4,7 @@ use crate::{
     patch, patch_execute, rc,
     virtual_machine::{
         inst::Inst,
-        types::{function::TFunction, list::TList},
+        types::{function::TFunction, list::TList, structdef::TStructDef},
         value::Value,
     },
 };
@@ -201,6 +201,9 @@ impl Compiler {
             Node::MatchStatement { expr, branches } => self.compile_match(expr, branches),
 
             Node::EnumDef { name, items } => self.compile_enum_def(name, items),
+
+            Node::StructDef { name, fields } => self.compile_struct_def(name, fields),
+            Node::StructInit { target, fields } => self.compile_struct_init(target, fields),
 
             _ => panic!("Unknown node: `{node:?}`"),
         }
@@ -588,10 +591,10 @@ impl Compiler {
             self.instructions.push(operator_inst);
             self.instructions.push(Inst::SET_VAR(hash_u64!(x.as_str())));
         } else if let Node::MemberAccess { expr, member } = &**target {
-			self.compile_node(&**expr);
+            self.compile_node(&**expr);
             self.compile_node(&**member);
-			self.instructions.push(Inst::GET_PROP);
-			self.compile_node(&**value);
+            self.instructions.push(Inst::GET_PROP);
+            self.compile_node(&**value);
             self.instructions.push(operator_inst);
             self.compile_node(&**expr);
             self.compile_node(&**member);
@@ -814,6 +817,33 @@ impl Compiler {
         }
         self.instructions.push(Inst::ENUM(name.clone(), name_vec));
         self.emit_store_local(name, false);
+    }
+
+    pub fn compile_struct_def(&mut self, name: &String, fields: &Vec<(String, String)>) {
+        let mut field_map: HashMap<String, String> = HashMap::new();
+        for (k, v) in fields {
+            field_map.insert(k.clone(), v.clone());
+        }
+
+        self.instructions
+            .push(Inst::PUSH(Value::StructDef(rc!(TStructDef::new(
+                name.clone(),
+                rc!(field_map),
+            )))));
+
+        self.emit_store_local(name, false);
+    }
+
+    pub fn compile_struct_init(&mut self, target: &Box<Node>, fields: &Vec<(String, Node)>) {
+        let mut field_names = vec![];
+        for (name, value) in fields {
+            field_names.push(name.clone());
+            self.compile_node(value);
+        }
+        self.compile_node(&**target);
+        self.instructions.push(Inst::STRUCT(
+            field_names.iter().rev().map(|x| x.clone()).collect(),
+        ));
     }
 }
 

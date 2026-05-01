@@ -145,6 +145,11 @@ pub enum Node {
         fields: Vec<(String, String)>, // (key, type)
     },
 
+	StructInit {
+		target: Box<Node>,
+		fields: Vec<(String, Node)>
+	},
+
     InterfaceDef {
         name: Rc<String>,
         let_statements: Vec<Node>,
