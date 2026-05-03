@@ -747,9 +747,11 @@ impl VM {
                             self.locals.truncate(depth);
                         }
                     } else {
+						self.locals.pop();
                         break;
                     }
                     if stop_at_return {
+						self.locals.pop();
                         break;
                     }
                 }

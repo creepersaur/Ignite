@@ -20,6 +20,7 @@ pub struct Compiler {
     pub instructions: Vec<Inst>,
     pub intern_table: HashMap<u64, Rc<str>>,
     pub scopes: Vec<HashSet<String>>,
+    pub scope_base: usize,
 }
 
 impl Compiler {
@@ -30,6 +31,7 @@ impl Compiler {
             instructions: vec![],
             scopes: vec![HashSet::new()],
             intern_table: HashMap::new(),
+            scope_base: 0,
         }
     }
 
@@ -55,7 +57,7 @@ impl Compiler {
 
     pub fn emit_store_local(&mut self, name: &str, is_const: bool) {
         let id = self.intern(name);
-        let depth = self.scopes.len() - 1;
+        let depth = self.scopes.len() - 1 - self.scope_base;
 
         self.instructions.push(if is_const {
             Inst::STORE_LOCAL_CONST { id, depth }
@@ -80,7 +82,11 @@ impl Compiler {
 
         let id = self.intern(name);
         if let Some(depth) = found_depth {
-            self.instructions.push(Inst::LOAD_LOCAL { id, depth });
+            let relative = depth.saturating_sub(self.scope_base);
+            self.instructions.push(Inst::LOAD_LOCAL {
+                id,
+                depth: relative,
+            });
         } else {
             self.instructions.push(Inst::LOAD_GLOBAL(id));
         }
@@ -631,6 +637,9 @@ impl Compiler {
 
         self.comment("Function def start:");
 
+        let saved_base = self.scope_base; // <-- save
+        self.scope_base = self.scopes.len(); // <-- reset: depths start fresh here
+
         self.push_scope();
 
         for (arg_name, _, default_value) in args.iter() {
@@ -648,6 +657,8 @@ impl Compiler {
 
         self.instructions.push(Inst::RETURN);
         self.pop_scope();
+
+        self.scope_base = saved_base; // <-- restore
 
         self.comment("Function def end");
 

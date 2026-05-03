@@ -9,7 +9,6 @@ impl Compiler {
         self.replace_tostring();
         self.remove_load_pops();
         self.remove_store_load_pairs();
-        self.trim_end_pops();
     }
 
     pub fn finalize_bytecode(&mut self) {
@@ -21,15 +20,12 @@ impl Compiler {
 
         self.remove_nops();
 
-        // remove last POP
-        if matches!(self.instructions.last(), Some(Inst::TRY_POP | Inst::POP)) {
-            self.instructions.pop();
-        }
+        self.trim_end_pops();
     }
 
     pub fn trim_end_pops(&mut self) {
         while let Some(last) = self.instructions.last() {
-            if matches!(last, Inst::NOP | Inst::TRY_POP | Inst::POP) {
+            if matches!(last, Inst::NOP | Inst::TRY_POP | Inst::POP | Inst::DEFAULT_NIL) {
                 self.instructions.pop();
             } else {
                 break;
