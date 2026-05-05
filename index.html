@@ -1,32 +1,52 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<link rel="icon" type="image/svg+xml" href="/ignite/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<head>
-	<meta charset="UTF-8" />
-	<link rel="icon" type="image/svg+xml" href="/ignite/favicon.svg" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta property="og:title" content="Ignite" />
-	<meta property="og:description" content="A dynamically typed bytecode compiled language made as a hobby project." />
-	<meta property="og:image" content="/ignite/IgniteThumbnail.png" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta property="og:url" content="https://creepersaur.github.io/ignite/" />
-	<meta name="theme-color" content="#fe624f" />
-	<title>Ignite Docs</title>
-	<script>
-		(function () {
-			var redirect = sessionStorage.redirect;
-			delete sessionStorage.redirect;
-			if (redirect && redirect !== location.href) {
-				history.replaceState(null, null, redirect);
-			}
-		})();
-	</script>
-  <script type="module" crossorigin src="/ignite/assets/index-Cn3Afs5e.js"></script>
-  <link rel="stylesheet" crossorigin href="/ignite/assets/index-CGvUGDWJ.css">
-</head>
+		<!-- Embed -->
 
-<body>
-	<div id="root"></div>
-</body>
+		<meta property="og:title" content="Ignite" />
+		<meta
+			property="og:description"
+			content="A dynamically typed bytecode compiled language made as a hobby project."
+		/>
+		<meta property="og:image" content="/ignite/IgniteThumbnail.png" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta
+			property="og:url"
+			content="https://creepersaur.github.io/ignite/"
+		/>
+		<meta name="theme-color" content="#fe624f" />
 
+		<!-- JetBrains Mono -->
+
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+			rel="stylesheet"
+		>
+
+		<!-- Main -->
+
+		<title>Ignite Docs</title>
+
+		<script>
+			(function () {
+				var redirect = sessionStorage.redirect;
+				delete sessionStorage.redirect;
+				if (redirect && redirect !== location.href) {
+					history.replaceState(null, null, redirect);
+				}
+			})();
+		</script>
+		<script type="module" crossorigin src="/ignite/assets/index-6z6HUJrg.js"></script>
+		<link rel="stylesheet" crossorigin href="/ignite/assets/index-BiSa2hIi.css">
+	</head>
+
+	<body>
+		<div id="root"></div>
+	</body>
 </html>
