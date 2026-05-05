@@ -18,7 +18,7 @@ export default function Docs() {
 
 	useEffect(() => {
 		if (docPath.length > 0) {
-			fetch(`/ignite/docs/${docPath}.md`)
+			fetch(`/ignite/docs_raw/${docPath}.md`)
 				.then((res) => res.text())
 				.then(setContent)
 				.catch(() => setContent("# Page not found"));
