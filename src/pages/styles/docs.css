@@ -1,8 +1,60 @@
-div.main {
-    flex-grow: 1;
-    align-content: center;
-    justify-content: center;
-	height: calc(100vh - 61px);
-	width: 100vw;
-	text-align: center;
+div.docs-main {
+	position: relative;
+	display: flex;
+	width: 100%;
+	height: calc(100vh - 60px);
+	translate: 0 0px;
+}
+
+.doc-section {
+	padding-top: 10px;
+	padding-left: 30px;
+	margin-bottom: 30px;
+}
+
+.doc-section p {
+	text-align: left;
+	color: white;
+	padding-bottom: 10px;
+	width: fit-content;
+	translate: -20px;
+}
+
+/* CONTENT */
+
+.doc-content {
+	font-family: Arial !important;
+	flex-grow: 1;
+	padding: 40px;
+	width: 100px;
+	line-height: 32px;
+	background: #171717;
+	overflow-y: scroll;
+}
+
+/* SCROLL BAR */
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) black;
+}
+
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: black;
+	border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 10px;
+	border: 2px solid black;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: darkgray;
 }

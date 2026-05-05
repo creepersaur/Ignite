@@ -1,12 +1,17 @@
 * {
     margin: 0;
-    font-family: "BR Cobane", Inter, "Inter 24pt", Arial, sans-serif;
+    font-family: "BR Cobane", "Inter", "Inter 24pt", Arial, Helvetica, sans-serif;
 	color: oklch(0.7 0 0);
+	letter-spacing: 0.5px;
 }
 
 :root {
     --primary: #ff6c4f;
+    --primary-bright: #ff854c;
+	--primary-dark: #ff4f4f;
     --primary-gradient: linear-gradient(#ff754f, #ff4f4f);
+
+	--border: oklch(0.3 0 0);
 }
 
 body {
@@ -14,4 +19,10 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+	overflow: hidden;
+}
+
+*::selection {
+	background: rgba(31, 154, 255, 0.308);
+	color: white;
 }

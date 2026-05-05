@@ -1,0 +1,77 @@
+.sidebar {
+	display: block;
+	height: calc(100% - 10px);
+	flex-grow: 0.3;
+	padding-right: 1px;
+	padding-top: 10px;
+	padding-left: 10px;
+	border-right: 1px solid var(--border);
+}
+
+.doc-button {
+	display: block;
+	border: 0;
+	text-decoration: none;
+	width: 100%;
+	padding-block: 15px;
+	background: transparent;
+	font-size: 16px;
+	transition: 0.3s cubic-bezier(0.075, 0.82, 0.165, 1);
+	text-indent: 20px;
+}
+
+.doc-button:not([active=true]):hover {
+	background: oklch(0.22 0 0);
+	transition: 0s cubic-bezier(0.075, 0.82, 0.165, 1);
+}
+
+.doc-section .doc-button {
+	position: relative;
+	border-left: 1px solid var(--border);
+}
+
+.doc-section .doc-button:active {
+	background: oklch(0.25 0 0);
+}
+
+.doc-section .doc-button[active=true] {
+	border-color: var(--primary);
+	color: var(--primary);
+	box-shadow: 3px 0 0 var(--primary) inset;
+}
+
+.doc-section .doc-button::after {
+	content: '';
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 0%;
+	height: 100%;
+	background: var(--primary-dark);
+	mix-blend-mode: screen;
+	opacity: 0;
+	translate: 0 0.3em;
+	rotate: 5deg;
+
+	transition: 0.2s ;
+}
+
+.doc-section .doc-button[active=true]::after {
+	content: '';
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: var(--primary-dark);
+	mix-blend-mode: screen;
+	opacity: 0.2;
+	rotate: 0deg;
+	translate: 0 0em;
+}
+
+.doc-section .doc-button[active=true]:hover::after {
+	opacity: 0.3;
+}

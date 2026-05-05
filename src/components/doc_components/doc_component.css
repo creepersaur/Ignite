@@ -1,0 +1,60 @@
+/* HEADERS */
+
+.doc-content h1 {
+	color: var(--primary);
+	font-size: 3rem;
+	padding-block: 20px;
+	font-weight: 500;
+	letter-spacing: -0.5px;
+}
+
+.doc-content h2 {
+	color: white;
+	font-size: 1.5rem !important;
+	padding-block: 20px;
+	letter-spacing: -0.5px;
+	font-weight: 500;
+}
+
+.doc-content h3 {
+	color: white;
+	font-size: 1.23rem !important;
+	padding-block: 20px;
+}
+
+/* BOLD TEXT */
+
+strong {
+	color: white;
+}
+
+/* LINE */
+
+hr {
+	border-color: var(--border);
+	margin-block: 10px;
+}
+
+/* Targets Chrome 29+, Edge (Chromium), and Opera */
+@supports (-webkit-app-region: inherit) {
+	hr {
+		opacity: 0.5;
+	}
+}
+
+/* Estimated Reading Time */
+
+EstimatedTime {
+	display: inline-flex;
+	gap: 0.5em;
+	align-items: center;
+	opacity: 0.5;
+	font-size: 15px;
+	user-select: none;
+}
+
+SmallBullet {
+	line-height: 1;
+	transform: translateY(-1px);
+	scale: 0.8;
+}

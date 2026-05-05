@@ -17,7 +17,7 @@ div.title-header {
 .title-header h1 {
     font-size: 50px;
     color: white;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .title-header img {
@@ -30,7 +30,6 @@ div.title-header {
     display: block;
     font-size: 20px;
     text-align: left;
-    margin-bottom: -10px;
     color: var(--primary)
 }
 
@@ -40,13 +39,17 @@ div.description {
     text-align: center;
     width: 80%;
     margin-inline: auto;
+	padding-block: 10px;
+	font-size: 17px;
+	font-weight: 400;
+	line-height: 30px !important;
 }
 
 div.button-holder {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    gap: 1em;
+    gap: 2em;
     user-select: none;
     margin-top: 20px;
     color: oklch(0.8 0 0);
@@ -56,35 +59,35 @@ div.button-holder {
 
 .button-holder a {
 	text-decoration: none;
-    padding-inline: 30px;
-    padding-block: 10px;
-    background: none;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 1em;
-    border: 4px solid oklch(0.5 0 0);
-    transition: 0.7s cubic-bezier(0.075, 0.82, 0.165, 1);
+	padding-block: 15px;
+	padding-inline: 30px;
+	padding-top: 18px;
+	color: white;
+	border: 3px solid white;
+	border-radius: calc(2% + 11px);
+	transition: 0.3s cubic-bezier(0.075, 0.82, 0.165, 1);
+	box-shadow: 0 0 10px 10px black inset;
 }
 
 .button-holder a.primary {
-    background: linear-gradient(oklch(0.17 0 0)) padding-box,
-        var(--primary-gradient) border-box;
-    border: 4px solid transparent;
+	border-color: var(--primary);
 }
 
 .button-holder a:hover {
-    background: oklch(0.25 0 0);
-    box-shadow: 0 0 20px -10px white;
-}
-
-.button-holder a:active {
-    scale: 0.9;
+	color: black;
+	box-shadow: 0 0 0px transparent inset,
+		0 0 30px rgba(255, 255, 255, 0.3);
+    background: white;
 }
 
 .button-holder a.primary:hover {
-    background: linear-gradient(oklch(0.25 0 0)) padding-box,
-        var(--primary-gradient) border-box;
-    box-shadow: 0 0 30px -10px var(--primary);
+    color: white;
+	background: var(--primary);
+	box-shadow: 0 0 0px transparent inset,
+		0 0 30px -5px var(--primary-dark);
+}
+
+.button-holder a:active {
+	scale: 0.9;
+	opacity: 0.89;
 }

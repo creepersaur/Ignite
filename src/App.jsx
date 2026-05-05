@@ -12,7 +12,7 @@ export default function App() {
 			<Routes>
 				<Route path="*" element={<NotFound />} />
 				<Route path="/" element={<Home />} />
-				<Route path="/docs" element={<Docs />} />
+				<Route path="/docs/*" element={<Docs />} />
 				<Route path="/api" element={<Api />} />
 			</Routes>
 		</BrowserRouter>
