@@ -22,7 +22,7 @@ All of this happens in milliseconds, every time you scroll every time you blink 
 ## Here's some code blocks
 
 ```ignite
-fn  hello() {
+fn hello() {
 	println("hello world");
 }
 ```
