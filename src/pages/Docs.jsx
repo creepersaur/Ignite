@@ -18,6 +18,7 @@ export default function Docs() {
 
 	useEffect(() => {
 		if (docPath.length > 0) {
+			setContent("Loading...");
 			fetch(`/ignite/docs_raw/${docPath}.md`)
 				.then((res) => res.text())
 				.then(setContent)
@@ -32,12 +33,35 @@ export default function Docs() {
 		const collected = Array.from(nodes).map((el) => {
 			const id = el.textContent.toLowerCase().replace(/\s+/g, "-");
 			el.id = id;
-			return {
+
+			const item = {
 				text: el.textContent,
 				level: Number(el.tagName[1]),
 				element: el,
 				id,
 			};
+
+			const header_link = document.createElement("a");
+			header_link.text = "#";
+			header_link.className = "header-link";
+			header_link.href = `#${id}`;
+
+			el.querySelectorAll(".header-link").forEach((a) => a.remove());
+			el.appendChild(header_link);
+			el.addEventListener("click", () => {
+				const url =
+					`${window.location.origin}${window.location.pathname}#${id}`;
+				navigator.clipboard.writeText(url);
+			}, { once: false });
+
+			if (window.location.hash == `#${id}`) {
+				el.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+				});
+			}
+
+			return item;
 		});
 		setHeadings(collected);
 	}, [content]);

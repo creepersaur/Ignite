@@ -22,6 +22,26 @@
 	padding-block: 20px;
 }
 
+/* HEADER LINK */
+
+.header-link {
+	position: relative;
+	display: inline-block;
+	color: oklch(0.5 0 0);
+	text-indent: 10px;
+	text-decoration: none;
+	opacity: 0;
+}
+
+.header-link:hover {
+	text-decoration: underline;
+	color: var(--primary);
+}
+
+h1:hover .header-link, h2:hover .header-link, h3:hover .header-link {
+	opacity: 1;
+}
+
 /* BOLD TEXT */
 
 strong {
