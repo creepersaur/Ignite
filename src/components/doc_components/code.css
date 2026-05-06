@@ -107,6 +107,7 @@ pre {
 
 .copy-btn[copied] {
 	border-color: #5ecc95;
+	opacity: 1;
 }
 
 .copy-btn[copied] * {
