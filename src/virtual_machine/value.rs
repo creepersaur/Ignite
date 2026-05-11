@@ -96,9 +96,9 @@ impl Value {
             }
             Self::String(x) => {
                 if debug {
-                    format!("\"{}\"", x.0)
+                    format!("\"{}\"", x.0.replace("\r", ""))
                 } else {
-                    x.0.to_string()
+                    x.0.to_string().replace("\r", "")
                 }
             }
 
@@ -120,7 +120,8 @@ impl Value {
                 list.values
                     .borrow()
                     .iter()
-                    .map(|x| if let Value::List(v) = x {
+                    .map(|x|
+						if let Value::List(v) = x {
                         if list.values.as_ptr() == v.values.as_ptr() {
                             String::from("[...]")
                         } else {

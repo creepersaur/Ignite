@@ -5,7 +5,7 @@ use crate::{
         inst::Inst,
         libs::{
             lib::Library,
-            namespaces::{io_lib::IOLib, math_lib::MathLib},
+            namespaces::{fs_lib::FSLib, io_lib::IOLib, math_lib::MathLib},
             type_lib::TypeLib,
             types::{
                 dict_lib::DictLib, list_lib::ListLib, string_lib::StringLib, tuple_lib::TupleLib,
@@ -108,6 +108,7 @@ impl VM {
         // namespaces
         libs.insert(hash_u64!("math"), Box::new(MathLib));
         libs.insert(hash_u64!("io"), Box::new(IOLib));
+        libs.insert(hash_u64!("fs"), Box::new(FSLib));
 
         libs
     }
@@ -377,6 +378,10 @@ impl VM {
                         .expect("Cannot DUP, stack underflow.")
                         .clone(),
                 ),
+                Inst::SWAP => {
+                    let n = self.stack.len();
+                    self.stack.swap(n - 1, n - 2);
+                }
 
                 // Collections
                 Inst::LIST(length) => {

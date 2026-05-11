@@ -14,6 +14,7 @@ pub enum Inst {
     DEFAULT_NIL,     // ✅
     PUSH(Value),     // ✅
     DUP,             // ✅
+    SWAP,            // ✅
     POP,             // ✅
     TRY_POP,         // ✅
 

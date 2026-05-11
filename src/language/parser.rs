@@ -1016,6 +1016,8 @@ impl Parser {
 
         self.expect_and_consume(TokenKind::RBRACE)?;
 
+        self.parse_implicit_return(body.last_mut());
+
         Ok(Node::Block { body })
     }
 
@@ -1185,7 +1187,7 @@ impl Parser {
         self.advance()?;
 
         Ok(Node::WhileLoop {
-            condition: Box::new(self.parse_expression()?),
+            condition: Box::new(self.parse_ternary_op()?),
             block: Box::new(self.parse_block()?),
         })
     }
@@ -1200,7 +1202,7 @@ impl Parser {
 
         self.expect_and_consume(TokenKind::IN)?;
 
-        let expr = Box::new(self.parse_expression()?);
+        let expr = Box::new(self.parse_ternary_op()?);
         let block = Box::new(self.parse_block()?);
 
         Ok(Node::ForLoop {
@@ -1340,10 +1342,33 @@ impl Parser {
         return Ok(left);
     }
 
+    fn parse_implicit_return(&mut self, last: Option<&mut Node>) {
+        if let Some(last) = last {
+            if let Node::ExprStmt(expr) = last {
+                let is_returnable = !matches!(
+                    **expr,
+                    Node::LetStatement { .. }
+                        | Node::SetVariable { .. }
+                        | Node::ShorthandAssignment { .. }
+                        | Node::WhileLoop { .. }
+                        | Node::ForLoop { .. }
+                        | Node::Loop { .. }
+						| Node::OutStatement(..)
+						| Node::ReturnStatement(..)
+						| Node::BreakStatement(..)
+                );
+
+                if is_returnable {
+                    *last = Node::ExprStmt(Box::new(Node::OutStatement(Some(expr.clone()))));
+                }
+            }
+        }
+    }
+
     fn parse_match(&mut self) -> NodeResult {
         self.advance()?;
 
-        let expr = self.parse_expression()?;
+        let expr = self.parse_ternary_op()?;
 
         let mut branches = vec![];
 

@@ -1,1 +1,1 @@
-println(10 + 20)
+println(0 < 3 < 5 < 7)

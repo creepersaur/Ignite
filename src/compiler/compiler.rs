@@ -367,6 +367,40 @@ impl Compiler {
     }
 
     pub fn compile_bin_op(&mut self, left: &Box<Node>, right: &Box<Node>, op: &TokenKind) {
+        if Self::is_comparison_op(op) {
+            if let Node::BinOp {
+                left: ll,
+                right: lr,
+                op: inner_op,
+            } = &**left
+            {
+                if Self::is_comparison_op(inner_op) {
+                    self.compile_node(&**lr); // x
+                    self.instructions.push(Inst::DUP); // x x
+                    self.compile_node(&**ll); // x x 0
+                    self.instructions.push(Inst::SWAP); // x 0 x
+                    self.instructions.push(match inner_op {
+                        TokenKind::GT => Inst::GT,
+                        TokenKind::LT => Inst::LT,
+                        TokenKind::GE => Inst::GE,
+                        TokenKind::LE => Inst::LE,
+                        _ => unreachable!(),
+                    });
+                    self.instructions.push(Inst::SWAP); // bool x
+                    self.compile_node(&**right); // bool x 5
+                    self.instructions.push(match op {
+                        TokenKind::GT => Inst::GT,
+                        TokenKind::LT => Inst::LT,
+                        TokenKind::GE => Inst::GE,
+                        TokenKind::LE => Inst::LE,
+                        _ => unreachable!(),
+                    });
+                    self.instructions.push(Inst::AND);
+                    return;
+                }
+            }
+        }
+
         self.compile_node(&**left);
         self.compile_node(&**right);
         self.instructions.push(match op {
@@ -390,6 +424,13 @@ impl Compiler {
 
             _ => panic!("Cannot compile unknown bin-op: `{op:?}`"),
         });
+    }
+
+    fn is_comparison_op(op: &TokenKind) -> bool {
+        matches!(
+            op,
+            TokenKind::LT | TokenKind::LE | TokenKind::GT | TokenKind::GE
+        )
     }
 
     pub fn compile_null_coalesce(&mut self, left: &Box<Node>, right: &Box<Node>) {
@@ -493,7 +534,16 @@ impl Compiler {
                     self.compile_node(i);
                 }
             } else {
-                self.compile_node(i);
+                if let Node::OutStatement(val) = i {
+                    if let Some(v) = val {
+                        self.compile_node(&*v);
+                    } else {
+                        self.instructions.push(Inst::PUSH(Value::NIL));
+                    }
+                    outs.push(patch!(self.instructions)); // Jump to scope cleanup
+                } else {
+                    self.compile_node(i);
+                }
             }
         }
 

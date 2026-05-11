@@ -179,6 +179,39 @@ impl AST {
             Node::ExprStmt(n) => Node::ExprStmt(Box::new(Self::fold_constants(*n))),
 
             Node::BinOp { left, right, op } => {
+                // Desugar chained comparison: (a < b) < c  →  (a < b) && (b < c)
+                if matches!(
+                    op,
+                    TokenKind::LT | TokenKind::LE | TokenKind::GT | TokenKind::GE
+                ) {
+                    if let Node::BinOp {
+                        left: ll,
+                        right: lr,
+                        op: inner_op,
+                    } = &*left
+                    {
+                        if matches!(
+                            inner_op,
+                            TokenKind::LT | TokenKind::LE | TokenKind::GT | TokenKind::GE
+                        ) {
+                            let and_node = Node::BinOp {
+                                left: Box::new(Node::BinOp {
+                                    left: ll.clone(),
+                                    right: lr.clone(),
+                                    op: inner_op.clone(),
+                                }),
+                                right: Box::new(Node::BinOp {
+                                    left: lr.clone(), // middle value
+                                    right,
+                                    op,
+                                }),
+                                op: TokenKind::AND,
+                            };
+                            return Self::fold_constants(and_node); // re-fold the AND
+                        }
+                    }
+                }
+
                 let folded_left = Self::fold_constants(*left);
                 let folded_right = Self::fold_constants(*right);
 
