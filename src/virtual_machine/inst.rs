@@ -49,10 +49,11 @@ pub enum Inst {
     OR,  // ✅
     NOT, // ✅
 
-    LOAD_CONST(usize), // ✅
-    LOAD_GLOBAL(u64),  // ✅
-    STORE_GLOBAL(u64), // ✅
-    SET_VAR(u64),      // ✅
+    LOAD_CONST(usize),       // ✅
+    LOAD_GLOBAL(u64),        // ✅
+    STORE_GLOBAL(u64),       // ✅
+    STORE_GLOBAL_CONST(u64), // ✅
+    SET_VAR(u64),            // ✅
 
     PUSH_SCOPE,                                  // ✅
     POP_SCOPE,                                   // ✅

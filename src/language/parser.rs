@@ -111,7 +111,7 @@ impl Parser {
 
         match self.current()?.kind {
             TokenKind::CLASS => self.parse_class_def(),
-            TokenKind::FN => self.parse_function_def(false),
+            TokenKind::FN => self.parse_function_def(false, false),
             TokenKind::USING => self.parse_using(),
             TokenKind::ENUM => self.parse_enum(),
             TokenKind::STRUCT => self.parse_struct_def(),
@@ -364,8 +364,8 @@ impl Parser {
             TokenKind::LBRACE => self.parse_dict(),
 
             TokenKind::LET => self.parse_let(false),
-            TokenKind::CONST => self.parse_let(true),
-            TokenKind::FN => self.parse_function_def(true),
+            TokenKind::CONST => self.parse_const(),
+            TokenKind::FN => self.parse_function_def(true, false),
             TokenKind::LOOP => self.parse_loop(),
             TokenKind::WHILE => self.parse_while(),
             TokenKind::FOR => self.parse_for(),
@@ -870,6 +870,17 @@ impl Parser {
 
 // STATEMENTS
 impl Parser {
+    fn parse_const(&mut self) -> NodeResult {
+        if let Some(x) = self.peek()
+            && x.kind == TokenKind::FN
+        {
+            self.advance()?;
+            self.parse_function_def(false, true)
+        } else {
+            self.parse_let(true)
+        }
+    }
+
     fn parse_let(&mut self, is_const: bool) -> NodeResult {
         self.advance()?;
 
@@ -891,15 +902,14 @@ impl Parser {
 
             self.skip_new_lines();
 
-
             if let Ok(x) = self.current()
                 && x.kind == TokenKind::COLON
             {
-				self.advance()?;
-				self.expect_and_consume(TokenKind::Identifier)?;
+                self.advance()?;
+                self.expect_and_consume(TokenKind::Identifier)?;
             }
 
-			self.skip_new_lines();
+            self.skip_new_lines();
 
             if let Ok(x) = self.current()
                 && x.kind == TokenKind::COMMA
@@ -953,12 +963,23 @@ impl Parser {
                 self.advance()?;
                 loop {
                     let token = self.expect_and_consume(TokenKind::Identifier)?;
-                    imports.push(token.get_text(&self.source));
+                    let mut alias = None;
+
+                    if let Ok(next) = self.current()
+                        && next.kind == TokenKind::AS
+                    {
+                        self.advance()?;
+						let new_name = self.expect_and_consume(TokenKind::Identifier)?;
+
+						alias = Some(new_name.get_text(&self.source));
+                    }
+
+                    imports.push((token.get_text(&self.source), alias));
 
                     if let Ok(next) = self.current()
                         && next.kind == TokenKind::COMMA
                     {
-                        self.expect_and_consume(TokenKind::COMMA)?;
+                        self.advance()?;
                     } else {
                         break;
                     }
@@ -1035,7 +1056,7 @@ impl Parser {
         Ok(Node::Block { body })
     }
 
-    fn parse_function_def(&mut self, is_lambda: bool) -> NodeResult {
+    fn parse_function_def(&mut self, is_lambda: bool, is_const: bool) -> NodeResult {
         self.advance()?;
         self.skip_new_lines();
 
@@ -1102,6 +1123,7 @@ impl Parser {
             name,
             args,
             return_type,
+            is_const,
             block: Box::new(self.parse_block()?),
         })
     }
@@ -1287,7 +1309,7 @@ impl Parser {
 
             if let Ok(next) = self.current() {
                 match next.kind {
-                    TokenKind::FN => functions.push(self.parse_function_def(false)?),
+                    TokenKind::FN => functions.push(self.parse_function_def(false, false)?),
                     TokenKind::LET => let_statements.push(self.parse_let(false)?),
                     TokenKind::SEMI => {
                         self.advance()?;

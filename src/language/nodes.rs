@@ -75,7 +75,7 @@ pub enum Node {
     },
     UsingStatement {
         sequence: Vec<String>,
-        imports: Vec<String>,
+        imports: Vec<(String, Option<String>)>,
         wildcard: bool,
     },
 
@@ -101,6 +101,7 @@ pub enum Node {
         name: Option<Rc<String>>,
         return_type: Option<Rc<String>>,
         args: Vec<(Rc<String>, Option<Rc<String>>, Option<Node>)>,
+		is_const: bool,
         block: Box<Node>,
     },
 

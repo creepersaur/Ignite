@@ -1,4 +1,3 @@
-using Std::Math::{sin, PI}
+using Std::Math::{sin as hello}
 
-let x: number = sin(PI / 2)
-println(x)
+println(hello)

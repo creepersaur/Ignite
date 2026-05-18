@@ -62,7 +62,11 @@ impl Compiler {
         let depth = self.scopes.len() - 1 - self.scope_base;
 
         if self.scopes.len() == 1 {
-            self.instructions.push(Inst::STORE_GLOBAL(id));
+			if is_const {
+				self.instructions.push(Inst::STORE_GLOBAL_CONST(id));
+			} else {
+				self.instructions.push(Inst::STORE_GLOBAL(id));
+			}
             self.scopes[0].insert(name.to_string());
             return;
         }
@@ -197,8 +201,9 @@ impl Compiler {
                 name,
                 return_type,
                 args,
+				is_const,
                 block,
-            } => self.compile_function_def(name, return_type, args, block),
+            } => self.compile_function_def(name, return_type, args, *is_const, block),
 
             Node::ReturnStatement(value) => self.compile_return(value),
 
@@ -702,14 +707,15 @@ impl Compiler {
         name: &Option<Rc<String>>,
         _return_type: &Option<Rc<String>>,
         args: &Vec<(Rc<String>, Option<Rc<String>>, Option<Node>)>,
+		is_const: bool,
         block: &Box<Node>,
     ) {
         let saved_captures = std::mem::take(&mut self.current_captures);
 
-        self.comment("New function:");
+        self.comment(&format!("New function (const: {is_const}):"));
         let func_value = patch!(self.instructions);
         if let Some(name) = name {
-            self.emit_store_local(name.as_str(), false);
+            self.emit_store_local(name.as_str(), is_const);
         }
         let func_jump_to_end = patch!(self.instructions);
 
@@ -876,7 +882,7 @@ impl Compiler {
     pub fn compile_using(
         &mut self,
         sequence: &Vec<String>,
-        imports: &Vec<String>,
+        imports: &Vec<(String, Option<String>)>,
         _wildcard: bool,
     ) {
         for (index, item) in sequence.iter().enumerate() {
@@ -891,14 +897,18 @@ impl Compiler {
         }
 
         if imports.len() > 0 {
-            for (idx, item) in imports.iter().enumerate() {
+            for (idx, (item, alias)) in imports.iter().enumerate() {
                 if idx < imports.len() - 1 {
                     self.instructions.push(Inst::DUP)
                 }
                 self.instructions
                     .push(Inst::PUSH(Value::string(item.clone())));
                 self.instructions.push(Inst::GET_PROP);
-                self.emit_store_local(item, false);
+                if let Some(alias) = alias {
+					self.emit_store_local(alias, false);
+				} else {
+					self.emit_store_local(item, false);
+				}
             }
         } else {
             self.emit_store_local(&sequence[sequence.len() - 1], false);

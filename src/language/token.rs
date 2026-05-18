@@ -56,6 +56,7 @@ pub enum TokenKind {
     CLASS,
     MATCH,
     USING,
+    AS,
     ENUM,
     // INTERFACE,
     STRUCT,

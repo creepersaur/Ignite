@@ -654,6 +654,11 @@ impl VM {
                     let value = self.pop();
                     self.globals.insert(id, (value, false));
                 }
+				Inst::STORE_GLOBAL_CONST(id) => {
+                    let id = *id;
+                    let value = self.pop();
+                    self.globals.insert(id, (value, true));
+                }
                 Inst::LOAD_GLOBAL(id) => {
                     self.stack.push(
                         self.globals

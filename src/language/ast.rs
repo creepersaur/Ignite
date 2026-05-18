@@ -424,11 +424,13 @@ impl AST {
                 name,
                 return_type,
                 args,
+				is_const,
                 block,
             } => Node::FunctionDefinition {
                 name,
                 return_type,
                 args,
+				is_const,
                 block: Box::new(Self::fold_constants(*block)),
             },
             Node::FunctionCall { target, args } => Node::FunctionCall {
